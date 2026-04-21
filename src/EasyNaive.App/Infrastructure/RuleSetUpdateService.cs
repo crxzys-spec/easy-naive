@@ -18,15 +18,27 @@ internal sealed class RuleSetUpdateService : IDisposable
 
     private readonly AppPaths _paths;
     private readonly HttpClient _httpClient;
+    private readonly IReadOnlyList<Uri> _cnDomainRuleSetUrls;
+    private readonly IReadOnlyList<Uri> _cnIpRuleSetUrls;
+    private readonly bool _ownsHttpClient;
 
     public RuleSetUpdateService(AppPaths paths)
+        : this(paths, CreateDefaultHttpClient(), CnDomainRuleSetUrls, CnIpRuleSetUrls, ownsHttpClient: true)
+    {
+    }
+
+    internal RuleSetUpdateService(
+        AppPaths paths,
+        HttpClient httpClient,
+        IReadOnlyList<Uri> cnDomainRuleSetUrls,
+        IReadOnlyList<Uri> cnIpRuleSetUrls,
+        bool ownsHttpClient = false)
     {
         _paths = paths;
-        _httpClient = new HttpClient
-        {
-            Timeout = TimeSpan.FromSeconds(30)
-        };
-        _httpClient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("EasyNaive", "0.1"));
+        _httpClient = httpClient;
+        _cnDomainRuleSetUrls = cnDomainRuleSetUrls;
+        _cnIpRuleSetUrls = cnIpRuleSetUrls;
+        _ownsHttpClient = ownsHttpClient;
     }
 
     public Task<RuleSetUpdateSummary> EnsureAsync(CancellationToken cancellationToken = default)
@@ -41,7 +53,10 @@ internal sealed class RuleSetUpdateService : IDisposable
 
     public void Dispose()
     {
-        _httpClient.Dispose();
+        if (_ownsHttpClient)
+        {
+            _httpClient.Dispose();
+        }
     }
 
     private async Task<RuleSetUpdateSummary> UpdateInternalAsync(bool force, bool failIfUnavailable, CancellationToken cancellationToken)
@@ -50,7 +65,7 @@ internal sealed class RuleSetUpdateService : IDisposable
 
         var domainResult = await UpdateRuleSetAsync(
             _paths.CnDomainRuleSetPath,
-            CnDomainRuleSetUrls,
+            _cnDomainRuleSetUrls,
             "CN domain rule-set",
             force,
             failIfUnavailable,
@@ -58,7 +73,7 @@ internal sealed class RuleSetUpdateService : IDisposable
 
         var ipResult = await UpdateRuleSetAsync(
             _paths.CnIpRuleSetPath,
-            CnIpRuleSetUrls,
+            _cnIpRuleSetUrls,
             "CN IP rule-set",
             force,
             failIfUnavailable,
@@ -96,12 +111,28 @@ internal sealed class RuleSetUpdateService : IDisposable
             }
         }
 
-        if (fileExists && !failIfUnavailable)
+        if (!failIfUnavailable)
         {
-            return new RuleSetItemUpdateResult(displayName, destinationPath, Updated: false, Available: true, Warning: lastError?.Message ?? "Download failed.");
+            return new RuleSetItemUpdateResult(
+                displayName,
+                destinationPath,
+                Updated: false,
+                Available: fileExists,
+                Warning: lastError?.Message ?? "Download failed.");
         }
 
         throw new InvalidOperationException($"Failed to update {displayName}.", lastError);
+    }
+
+    private static HttpClient CreateDefaultHttpClient()
+    {
+        var httpClient = new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(30)
+        };
+
+        httpClient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("EasyNaive", "0.1"));
+        return httpClient;
     }
 
     private async Task DownloadRuleSetAsync(Uri sourceUrl, string destinationPath, CancellationToken cancellationToken)

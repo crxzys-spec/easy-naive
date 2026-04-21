@@ -61,6 +61,11 @@ internal sealed class AppPaths
         return new AppPaths(singBoxDirectory, dataRoot);
     }
 
+    internal static AppPaths CreateForTesting(string singBoxDirectory, string dataRoot)
+    {
+        return new AppPaths(singBoxDirectory, dataRoot);
+    }
+
     public void EnsureDirectories()
     {
         Directory.CreateDirectory(DataRoot);
