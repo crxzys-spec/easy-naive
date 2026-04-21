@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Windows.Forms;
+using EasyNaive.App.Presentation;
 using EasyNaive.Core.Models;
 
 namespace EasyNaive.App.Forms;
@@ -31,13 +32,16 @@ internal sealed class NodeEditorForm : Form
         ShowInTaskbar = false;
         ClientSize = new Size(640, 600);
         MinimumSize = new Size(640, 600);
+        BackColor = ModernTheme.BackgroundBottom;
+        Font = ModernTheme.BodyFont;
 
         var rootLayout = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
             RowCount = 2,
-            Padding = new Padding(12)
+            Padding = new Padding(14),
+            BackColor = ModernTheme.BackgroundBottom
         };
         rootLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         rootLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -45,7 +49,8 @@ internal sealed class NodeEditorForm : Form
         var contentPanel = new Panel
         {
             Dock = DockStyle.Fill,
-            AutoScroll = true
+            AutoScroll = true,
+            BackColor = ModernTheme.BackgroundBottom
         };
 
         var sectionsLayout = new TableLayoutPanel
@@ -61,6 +66,7 @@ internal sealed class NodeEditorForm : Form
             AutoSize = true,
             Dock = DockStyle.Top,
             Padding = new Padding(0, 0, 0, 8),
+            ForeColor = ModernTheme.MutedText,
             Text = "Define the node endpoint, credentials, and transport options used to build the sing-box outbound."
         };
         sectionsLayout.Controls.Add(introLabel, 0, 0);
@@ -213,17 +219,25 @@ internal sealed class NodeEditorForm : Form
         {
             AutoSize = true,
             MinimumSize = new Size(90, 32),
+            BackColor = ModernTheme.Accent,
+            ForeColor = Color.White,
+            FlatStyle = FlatStyle.Flat,
             Text = "Save"
         };
+        saveButton.FlatAppearance.BorderSize = 0;
         saveButton.Click += (_, _) => SaveAndClose();
 
         var cancelButton = new Button
         {
             AutoSize = true,
             MinimumSize = new Size(90, 32),
+            BackColor = ModernTheme.SurfaceStrong,
+            ForeColor = ModernTheme.Text,
+            FlatStyle = FlatStyle.Flat,
             Text = "Cancel",
             DialogResult = DialogResult.Cancel
         };
+        cancelButton.FlatAppearance.BorderSize = 0;
 
         buttonsPanel.Controls.Add(saveButton);
         buttonsPanel.Controls.Add(cancelButton);
@@ -274,7 +288,9 @@ internal sealed class NodeEditorForm : Form
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
             Dock = DockStyle.Top,
             Margin = new Padding(0, 0, 0, 10),
-            Padding = new Padding(10)
+            Padding = new Padding(10),
+            Text = text,
+            ForeColor = ModernTheme.Text
         };
     }
 

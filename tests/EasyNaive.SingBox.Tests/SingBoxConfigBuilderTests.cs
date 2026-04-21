@@ -43,6 +43,18 @@ public sealed class SingBoxConfigBuilderTests : IDisposable
     }
 
     [Fact]
+    public void BuildJson_WhenLanConnectionsAllowed_ListensOnAllInterfaces()
+    {
+        var settings = CreateSettings();
+        settings.AllowLanConnections = true;
+
+        var root = ParseRoot(_builder.BuildJson(settings, Array.Empty<NodeProfile>(), CreateContext()));
+
+        Assert.Equal("0.0.0.0", root["inbounds"]![0]!["listen"]!.GetValue<string>());
+        Assert.Equal(settings.ProxyMixedPort, root["inbounds"]![0]!["listen_port"]!.GetValue<int>());
+    }
+
+    [Fact]
     public void BuildJson_WhenTunMode_UsesTunInboundAndEnablesUdpOverTcp()
     {
         var settings = CreateSettings();

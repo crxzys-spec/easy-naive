@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Windows.Forms;
+using EasyNaive.App.Presentation;
 using EasyNaive.Core.Models;
 
 namespace EasyNaive.App.Forms;
@@ -21,13 +22,16 @@ internal sealed class SubscriptionEditorForm : Form
         MinimizeBox = false;
         ShowInTaskbar = false;
         ClientSize = new Size(520, 210);
+        BackColor = ModernTheme.BackgroundBottom;
+        Font = ModernTheme.BodyFont;
 
         var layout = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 2,
             RowCount = 4,
-            Padding = new Padding(12)
+            Padding = new Padding(14),
+            BackColor = ModernTheme.BackgroundBottom
         };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -43,7 +47,9 @@ internal sealed class SubscriptionEditorForm : Form
             Dock = DockStyle.Fill,
             Multiline = true,
             ScrollBars = ScrollBars.Vertical,
-            Text = subscription.Url
+            Text = subscription.Url,
+            BackColor = ModernTheme.SurfaceStrong,
+            ForeColor = ModernTheme.Text
         };
         layout.Controls.Add(CreateLabel("URL"), 0, 1);
         layout.Controls.Add(_urlTextBox, 1, 1);
@@ -53,6 +59,7 @@ internal sealed class SubscriptionEditorForm : Form
             Text = "Enabled",
             Checked = subscription.Enabled,
             AutoSize = true,
+            ForeColor = ModernTheme.Text,
             Margin = new Padding(3, 7, 3, 0)
         };
         layout.Controls.Add(CreateLabel("Options"), 0, 2);
@@ -68,16 +75,26 @@ internal sealed class SubscriptionEditorForm : Form
         var saveButton = new Button
         {
             AutoSize = true,
+            MinimumSize = new Size(90, 32),
+            BackColor = ModernTheme.Accent,
+            ForeColor = Color.White,
+            FlatStyle = FlatStyle.Flat,
             Text = "Save"
         };
+        saveButton.FlatAppearance.BorderSize = 0;
         saveButton.Click += (_, _) => SaveAndClose();
 
         var cancelButton = new Button
         {
             AutoSize = true,
+            MinimumSize = new Size(90, 32),
+            BackColor = ModernTheme.SurfaceStrong,
+            ForeColor = ModernTheme.Text,
+            FlatStyle = FlatStyle.Flat,
             Text = "Cancel",
             DialogResult = DialogResult.Cancel
         };
+        cancelButton.FlatAppearance.BorderSize = 0;
 
         buttonsPanel.Controls.Add(saveButton);
         buttonsPanel.Controls.Add(cancelButton);
@@ -118,7 +135,9 @@ internal sealed class SubscriptionEditorForm : Form
         var textBox = new TextBox
         {
             Dock = DockStyle.Fill,
-            Text = value
+            Text = value,
+            BackColor = ModernTheme.SurfaceStrong,
+            ForeColor = ModernTheme.Text
         };
 
         layout.Controls.Add(CreateLabel(label), 0, row);
@@ -132,6 +151,7 @@ internal sealed class SubscriptionEditorForm : Form
         {
             AutoSize = false,
             Dock = DockStyle.Fill,
+            ForeColor = ModernTheme.MutedText,
             Text = text,
             TextAlign = ContentAlignment.MiddleLeft
         };

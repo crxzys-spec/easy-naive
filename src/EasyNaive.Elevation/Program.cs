@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using EasyNaive.Core.Enums;
+using EasyNaive.Core.Logging;
 using EasyNaive.Core.Models;
 
 namespace EasyNaive.Elevation;
@@ -65,7 +66,7 @@ internal static class Program
         Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
 
         Process? singBoxProcess = null;
-        StreamWriter? logWriter = null;
+        RotatingLogFileWriter? logWriter = null;
 
         try
         {
@@ -233,15 +234,12 @@ internal static class Program
         return principal.IsInRole(WindowsBuiltInRole.Administrator);
     }
 
-    private static StreamWriter CreateLogWriter(string logPath)
+    private static RotatingLogFileWriter CreateLogWriter(string logPath)
     {
-        return new StreamWriter(new FileStream(logPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
-        {
-            AutoFlush = true
-        };
+        return new RotatingLogFileWriter(logPath);
     }
 
-    private static void WriteLogLine(StreamWriter? writer, string message)
+    private static void WriteLogLine(RotatingLogFileWriter? writer, string message)
     {
         if (writer is null)
         {

@@ -1,10 +1,12 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Net.Sockets;
 using System.Net;
 using EasyNaive.App.Diagnostics;
 using EasyNaive.App.Infrastructure;
+using EasyNaive.App.Importing;
 using EasyNaive.App.Presentation;
 using EasyNaive.App.Session;
 using EasyNaive.App.Subscriptions;
@@ -24,6 +26,7 @@ internal sealed class CoreController : IDisposable
 {
     private const string DefaultDelayTestUrl = "https://www.gstatic.com/generate_204";
     private const int DefaultDelayTimeoutMs = 5000;
+    private const int DefaultTcpPingTimeoutMs = 3000;
 
     private readonly AppPaths _paths;
     private readonly JsonFileStore<AppSettings> _settingsStore;
@@ -44,6 +47,8 @@ internal sealed class CoreController : IDisposable
     private readonly AppSessionState _appSessionState;
     private readonly Dictionary<string, int> _nodeLatencies = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> _nodeLatencyErrors = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, int> _nodeUrlTestLatencies = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _nodeUrlTestLatencyErrors = new(StringComparer.Ordinal);
     private volatile bool _suppressProcessExitError;
     private CancellationTokenSource? _trafficMonitorCancellationTokenSource;
     private Task? _trafficMonitorTask;
@@ -134,6 +139,12 @@ internal sealed class CoreController : IDisposable
 
     public NodeProfile? SelectedNode => _nodes.FirstOrDefault(node => node.Id == Settings.SelectedNodeId);
 
+    public string LogsDirectory => _paths.LogsDirectory;
+
+    public string AppLogPath => _paths.AppLogPath;
+
+    public string SingBoxLogPath => _paths.SingBoxLogPath;
+
     public string GenerateConfigPreview() => _configBuilder.BuildJson(Settings, _nodes, _paths.CreateBuildContext(Settings.ClashApiPort));
 
     public async Task<string> UpdateRuleSetsAsync(CancellationToken cancellationToken = default)
@@ -163,7 +174,7 @@ internal sealed class CoreController : IDisposable
         builder.Append(" | Core: ").Append(RuntimeState.CoreStatus);
         builder.Append(" | Stage: ").Append(RuntimeState.StatusDetail);
         builder.Append(" | PID: ").Append(RuntimeState.ProcessId?.ToString() ?? "-");
-        builder.Append(" | Latency: ").Append(RuntimeState.CurrentLatency is int latency ? $"{latency} ms" : "-");
+        builder.Append(" | Ping: ").Append(RuntimeState.CurrentLatency is int latency ? $"{latency} ms" : "-");
         builder.Append(" | Down: ").Append(TrafficFormatter.FormatRate(RuntimeState.DownloadRateBytesPerSecond));
         builder.Append(" | Up: ").Append(TrafficFormatter.FormatRate(RuntimeState.UploadRateBytesPerSecond));
         builder.Append(" | Conn: ").Append(RuntimeState.ActiveConnections);
@@ -234,9 +245,105 @@ internal sealed class CoreController : IDisposable
         return "-";
     }
 
+    public string GetNodeUrlTestLatencyDisplay(string? nodeId)
+    {
+        if (string.IsNullOrWhiteSpace(nodeId))
+        {
+            return "-";
+        }
+
+        if (_nodeUrlTestLatencies.TryGetValue(nodeId, out var delay))
+        {
+            return $"{delay} ms";
+        }
+
+        if (_nodeUrlTestLatencyErrors.TryGetValue(nodeId, out var error))
+        {
+            return error;
+        }
+
+        return "-";
+    }
+
     public async Task<int> ImportNodesFromTextAsync(string sourceName, string content, CancellationToken cancellationToken = default)
     {
+        var preview = PreviewNodesFromText(sourceName, content);
+        return await ImportNodesFromPreviewAsync(preview, skipDuplicates: false, cancellationToken);
+    }
+
+    public ManualImportPreview PreviewNodesFromText(string sourceName, string content)
+    {
         var normalizedSourceName = sourceName.Trim();
+        var importedNodes = BuildManualImportNodes(normalizedSourceName, content);
+        var existingKeys = _nodes
+            .Select(BuildNodeDuplicateKey)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var seenImportKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var previewItems = new List<ManualImportPreviewItem>(importedNodes.Length);
+
+        foreach (var importedNode in importedNodes)
+        {
+            var duplicateKey = BuildNodeDuplicateKey(importedNode);
+            var isExistingDuplicate = existingKeys.Contains(duplicateKey);
+            var isImportDuplicate = !seenImportKeys.Add(duplicateKey);
+
+            previewItems.Add(new ManualImportPreviewItem
+            {
+                Node = importedNode,
+                IsDuplicate = isExistingDuplicate || isImportDuplicate,
+                DuplicateReason = isExistingDuplicate
+                    ? "Already exists"
+                    : isImportDuplicate
+                        ? "Duplicate in import"
+                        : string.Empty
+            });
+        }
+
+        return new ManualImportPreview
+        {
+            SourceName = normalizedSourceName,
+            Items = previewItems
+        };
+    }
+
+    public async Task<int> ImportNodesFromPreviewAsync(
+        ManualImportPreview preview,
+        bool skipDuplicates,
+        CancellationToken cancellationToken = default)
+    {
+        var importedNodes = preview.Items
+            .Where(item => !skipDuplicates || !item.IsDuplicate)
+            .Select(item =>
+            {
+                var importedNode = CloneNode(item.Node);
+                importedNode.Id = Guid.NewGuid().ToString("N");
+                importedNode.SubscriptionId = string.Empty;
+                return importedNode;
+            })
+            .ToArray();
+
+        if (importedNodes.Length == 0)
+        {
+            throw new InvalidOperationException("No nodes are available to import after applying the duplicate policy.");
+        }
+
+        var nextSortOrder = _nodes.Count == 0 ? 0 : _nodes.Max(node => node.SortOrder) + 1;
+        foreach (var importedNode in importedNodes)
+        {
+            importedNode.SortOrder = nextSortOrder++;
+            _nodes.Add(importedNode);
+        }
+
+        NormalizeSortOrders();
+        EnsureSelectedNode();
+        RefreshCurrentLatency();
+
+        await PersistAndRestartIfRunningAsync(cancellationToken);
+        return importedNodes.Length;
+    }
+
+    private NodeProfile[] BuildManualImportNodes(string normalizedSourceName, string content)
+    {
         if (string.IsNullOrWhiteSpace(normalizedSourceName))
         {
             throw new InvalidOperationException("Source name is required.");
@@ -266,19 +373,7 @@ internal sealed class CoreController : IDisposable
             throw new InvalidOperationException("No valid naive nodes were found in the import content.");
         }
 
-        var nextSortOrder = _nodes.Count == 0 ? 0 : _nodes.Max(node => node.SortOrder) + 1;
-        foreach (var importedNode in importedNodes)
-        {
-            importedNode.SortOrder = nextSortOrder++;
-            _nodes.Add(importedNode);
-        }
-
-        NormalizeSortOrders();
-        EnsureSelectedNode();
-        RefreshCurrentLatency();
-
-        await PersistAndRestartIfRunningAsync(cancellationToken);
-        return importedNodes.Length;
+        return importedNodes;
     }
 
     public async Task AddSubscriptionAsync(SubscriptionProfile subscription, CancellationToken cancellationToken = default)
@@ -323,14 +418,38 @@ internal sealed class CoreController : IDisposable
 
         if (!existing.Enabled)
         {
-            existing.LastError = string.Empty;
-            existing.ImportedNodeCount = 0;
+            MarkSubscriptionDisabled(existing);
             ReplaceNodesForSubscription(existing.Id, Array.Empty<NodeProfile>());
             await PersistAndRestartIfRunningAsync(cancellationToken);
             return;
         }
 
         await RefreshSubscriptionInternalAsync(existing, cancellationToken);
+    }
+
+    public async Task SetSubscriptionEnabledAsync(string subscriptionId, bool enabled, CancellationToken cancellationToken = default)
+    {
+        var subscription = _subscriptions.FirstOrDefault(current => current.Id == subscriptionId);
+        if (subscription is null)
+        {
+            throw new InvalidOperationException("Subscription was not found.");
+        }
+
+        if (subscription.Enabled == enabled)
+        {
+            return;
+        }
+
+        subscription.Enabled = enabled;
+        if (!subscription.Enabled)
+        {
+            MarkSubscriptionDisabled(subscription);
+            ReplaceNodesForSubscription(subscription.Id, Array.Empty<NodeProfile>());
+            await PersistAndRestartIfRunningAsync(cancellationToken);
+            return;
+        }
+
+        await RefreshSubscriptionInternalAsync(subscription, cancellationToken);
     }
 
     public async Task RemoveSubscriptionAsync(string subscriptionId, CancellationToken cancellationToken = default)
@@ -520,7 +639,7 @@ internal sealed class CoreController : IDisposable
                 state.ProcessId = null;
                 state.CurrentRealNodeId = string.Empty;
                 state.CurrentLatency = null;
-                state.LastError = ex.Message;
+                state.LastError = ErrorMessageTranslator.ToDisplayMessage(ex);
                 state.StatusDetail = "Connect failed";
                 ApplyElevationSessionSummary(state);
             });
@@ -579,7 +698,7 @@ internal sealed class CoreController : IDisposable
             UpdateRuntimeState(state =>
             {
                 state.CoreStatus = CoreStatus.Error;
-                state.LastError = ex.Message;
+                state.LastError = ErrorMessageTranslator.ToDisplayMessage(ex);
                 state.StatusDetail = "Disconnect failed";
                 ApplyElevationSessionSummary(state);
             });
@@ -714,14 +833,17 @@ internal sealed class CoreController : IDisposable
         var requiresRestart = _processManager.IsRunning &&
             (previousSettings.ClashApiPort != sanitized.ClashApiPort ||
              !string.Equals(previousSettings.LogLevel, sanitized.LogLevel, StringComparison.OrdinalIgnoreCase) ||
-             (Settings.CaptureMode == CaptureMode.Proxy && previousSettings.ProxyMixedPort != sanitized.ProxyMixedPort) ||
+             (Settings.CaptureMode == CaptureMode.Proxy &&
+              (previousSettings.ProxyMixedPort != sanitized.ProxyMixedPort ||
+               previousSettings.AllowLanConnections != sanitized.AllowLanConnections)) ||
              (Settings.CaptureMode == CaptureMode.Tun && previousSettings.EnableTunStrictRoute != sanitized.EnableTunStrictRoute));
 
         if (!_processManager.IsRunning)
         {
-            if (previousSettings.ProxyMixedPort != sanitized.ProxyMixedPort)
+            if (previousSettings.ProxyMixedPort != sanitized.ProxyMixedPort ||
+                previousSettings.AllowLanConnections != sanitized.AllowLanConnections)
             {
-                EnsureLoopbackPortAvailable(sanitized.ProxyMixedPort);
+                EnsureProxyInboundPortAvailable(sanitized.ProxyMixedPort, sanitized.AllowLanConnections);
             }
 
             if (previousSettings.ClashApiPort != sanitized.ClashApiPort)
@@ -830,6 +952,8 @@ internal sealed class CoreController : IDisposable
         {
             _nodeLatencies.Remove(existing.Id);
             _nodeLatencyErrors.Remove(existing.Id);
+            _nodeUrlTestLatencies.Remove(existing.Id);
+            _nodeUrlTestLatencyErrors.Remove(existing.Id);
         }
 
         NormalizeSortOrders();
@@ -848,6 +972,8 @@ internal sealed class CoreController : IDisposable
 
         _nodeLatencies.Remove(nodeId);
         _nodeLatencyErrors.Remove(nodeId);
+        _nodeUrlTestLatencies.Remove(nodeId);
+        _nodeUrlTestLatencyErrors.Remove(nodeId);
         NormalizeSortOrders();
         EnsureSelectedNode();
         RefreshCurrentLatency();
@@ -867,7 +993,7 @@ internal sealed class CoreController : IDisposable
 
     public async Task TestAllNodeLatenciesAsync(CancellationToken cancellationToken = default)
     {
-        EnsureLatencyTestReady();
+        EnsurePingTestReady();
 
         var failures = new List<string>();
         var enabledNodes = _nodes
@@ -891,7 +1017,7 @@ internal sealed class CoreController : IDisposable
         if (failures.Count > 0)
         {
             throw new InvalidOperationException(
-                $"Latency test failed for {failures.Count} node(s): {string.Join(", ", failures.Take(3))}{(failures.Count > 3 ? "..." : string.Empty)}");
+                $"Ping test failed for {failures.Count} node(s): {string.Join(", ", failures.Take(3))}{(failures.Count > 3 ? "..." : string.Empty)}");
         }
     }
 
@@ -951,7 +1077,7 @@ internal sealed class CoreController : IDisposable
         }
         catch (Exception ex)
         {
-            report.AddFailed("App log", ex.Message);
+            report.AddFailed("App log", ErrorMessageTranslator.ToDisplayMessage(ex));
         }
 
         try
@@ -972,7 +1098,7 @@ internal sealed class CoreController : IDisposable
         }
         catch (Exception ex)
         {
-            report.AddFailed("Startup registration", ex.Message);
+            report.AddFailed("Startup registration", ErrorMessageTranslator.ToDisplayMessage(ex));
         }
 
         var recoveryDetail = _appSessionState.RestoreConnectionOnLaunch
@@ -997,7 +1123,7 @@ internal sealed class CoreController : IDisposable
         }
         catch (Exception ex)
         {
-            report.AddFailed("sing-box check", ex.Message);
+            report.AddFailed("sing-box check", ErrorMessageTranslator.ToDisplayMessage(ex));
         }
         finally
         {
@@ -1023,7 +1149,7 @@ internal sealed class CoreController : IDisposable
             }
             catch (Exception ex)
             {
-                report.AddFailed("Clash API", ex.Message);
+                report.AddFailed("Clash API", ErrorMessageTranslator.ToDisplayMessage(ex));
             }
 
             try
@@ -1033,7 +1159,7 @@ internal sealed class CoreController : IDisposable
             }
             catch (Exception ex)
             {
-                report.AddFailed("Clash API port", ex.Message);
+                report.AddFailed("Clash API port", ErrorMessageTranslator.ToDisplayMessage(ex));
             }
 
             if (Settings.CaptureMode == CaptureMode.Proxy)
@@ -1045,7 +1171,7 @@ internal sealed class CoreController : IDisposable
                 }
                 catch (Exception ex)
                 {
-                    report.AddFailed("Mixed inbound", ex.Message);
+                    report.AddFailed("Mixed inbound", ErrorMessageTranslator.ToDisplayMessage(ex));
                 }
             }
             else
@@ -1064,7 +1190,7 @@ internal sealed class CoreController : IDisposable
             }
             catch (Exception ex)
             {
-                report.AddFailed("Clash API port", ex.Message);
+                report.AddFailed("Clash API port", ErrorMessageTranslator.ToDisplayMessage(ex));
             }
 
             if (Settings.CaptureMode == CaptureMode.Proxy)
@@ -1076,7 +1202,7 @@ internal sealed class CoreController : IDisposable
                 }
                 catch (Exception ex)
                 {
-                    report.AddFailed("Mixed inbound", ex.Message);
+                    report.AddFailed("Mixed inbound", ErrorMessageTranslator.ToDisplayMessage(ex));
                 }
             }
             else
@@ -1322,6 +1448,7 @@ internal sealed class CoreController : IDisposable
     private void ApplyGeneralSettings(AppSettings settings)
     {
         Settings.ProxyMixedPort = settings.ProxyMixedPort;
+        Settings.AllowLanConnections = settings.AllowLanConnections;
         Settings.ClashApiPort = settings.ClashApiPort;
         Settings.EnableAutoStart = settings.EnableAutoStart;
         Settings.EnableMinimizeToTray = settings.EnableMinimizeToTray;
@@ -1357,7 +1484,7 @@ internal sealed class CoreController : IDisposable
             state.ProcessId = null;
             state.CurrentRealNodeId = string.Empty;
             state.CurrentLatency = null;
-            state.LastError = $"sing-box exited unexpectedly with code {exitCode?.ToString() ?? "unknown"}";
+            state.LastError = ErrorMessageTranslator.ToDisplayMessage($"sing-box exited unexpectedly with code {exitCode?.ToString() ?? "unknown"}");
             state.StatusDetail = "sing-box exited unexpectedly";
             ApplyElevationSessionSummary(state);
             ResetTrafficState(state);
@@ -1508,19 +1635,39 @@ internal sealed class CoreController : IDisposable
 
     private async Task<IReadOnlyList<NodeProfile>> DownloadSubscriptionNodesAsync(SubscriptionProfile subscription, CancellationToken cancellationToken)
     {
+        var startedAt = DateTimeOffset.Now;
+        subscription.LastRefreshStarted = startedAt;
+        subscription.LastRefreshFinished = null;
+        subscription.LastError = string.Empty;
+
         try
         {
             var importedNodes = await _subscriptionImportService.DownloadNodesAsync(subscription, cancellationToken);
+            var finishedAt = DateTimeOffset.Now;
             subscription.ImportedNodeCount = importedNodes.Count;
-            subscription.LastUpdated = DateTimeOffset.Now;
+            subscription.LastUpdated = finishedAt;
+            subscription.LastRefreshFinished = finishedAt;
+            subscription.LastRefreshDurationMilliseconds = Math.Max(0, (long)(finishedAt - startedAt).TotalMilliseconds);
             subscription.LastError = string.Empty;
             return importedNodes;
         }
         catch (Exception ex)
         {
-            subscription.LastError = ex.Message;
+            var finishedAt = DateTimeOffset.Now;
+            subscription.LastRefreshFinished = finishedAt;
+            subscription.LastRefreshDurationMilliseconds = Math.Max(0, (long)(finishedAt - startedAt).TotalMilliseconds);
+            subscription.LastError = ErrorMessageTranslator.ToDisplayMessage(ex);
             throw;
         }
+    }
+
+    private static void MarkSubscriptionDisabled(SubscriptionProfile subscription)
+    {
+        subscription.ImportedNodeCount = 0;
+        subscription.LastError = string.Empty;
+        subscription.LastRefreshStarted = null;
+        subscription.LastRefreshFinished = null;
+        subscription.LastRefreshDurationMilliseconds = 0;
     }
 
     private void ReplaceNodesForSubscription(string subscriptionId, IReadOnlyList<NodeProfile> importedNodes)
@@ -1534,6 +1681,8 @@ internal sealed class CoreController : IDisposable
         {
             _nodeLatencies.Remove(removedNodeId);
             _nodeLatencyErrors.Remove(removedNodeId);
+            _nodeUrlTestLatencies.Remove(removedNodeId);
+            _nodeUrlTestLatencyErrors.Remove(removedNodeId);
         }
 
         _nodes.RemoveAll(node => string.Equals(node.SubscriptionId, subscriptionId, StringComparison.Ordinal));
@@ -1555,36 +1704,52 @@ internal sealed class CoreController : IDisposable
 
     private async Task<int> TestNodeLatencyCoreAsync(NodeProfile node, CancellationToken cancellationToken)
     {
-        EnsureLatencyTestReady();
+        EnsurePingTestReady();
 
         if (!node.Enabled)
         {
             throw new InvalidOperationException("Only enabled nodes can be tested.");
         }
 
-        var controller = GetClashApiController();
-        var nodeTag = SingBoxTags.GetNodeTag(node);
+        var ping = await TestNodeTcpPingCoreAsync(node, cancellationToken);
 
+        if (_processManager.IsRunning)
+        {
+            try
+            {
+                await TestNodeUrlLatencyCoreAsync(node, cancellationToken);
+            }
+            catch
+            {
+                // URL Test is diagnostic; keep Ping usable even if the proxy path fails.
+            }
+        }
+
+        return ping;
+    }
+
+    private async Task<int> TestNodeTcpPingCoreAsync(NodeProfile node, CancellationToken cancellationToken)
+    {
         try
         {
-            await _clashApiClient.WaitUntilAvailableAsync(controller, Settings.ClashApiSecret, cancellationToken);
-            var delay = await _clashApiClient.TestProxyDelayAsync(
-                controller,
-                Settings.ClashApiSecret,
-                nodeTag,
-                DefaultDelayTestUrl,
-                DefaultDelayTimeoutMs,
-                cancellationToken);
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(DefaultTcpPingTimeoutMs);
 
-            _nodeLatencies[node.Id] = delay;
+            using var client = new TcpClient();
+            var stopwatch = Stopwatch.StartNew();
+            await client.ConnectAsync(node.Server, node.ServerPort, timeoutCts.Token);
+            stopwatch.Stop();
+
+            var ping = Math.Max(1, (int)Math.Round(stopwatch.Elapsed.TotalMilliseconds));
+            _nodeLatencies[node.Id] = ping;
             _nodeLatencyErrors.Remove(node.Id);
 
             if (Settings.NodeMode == NodeMode.Manual && string.Equals(Settings.SelectedNodeId, node.Id, StringComparison.Ordinal))
             {
-                UpdateRuntimeState(state => state.CurrentLatency = delay);
+                UpdateRuntimeState(state => state.CurrentLatency = ping);
             }
 
-            return delay;
+            return ping;
         }
         catch (Exception ex)
         {
@@ -1600,13 +1765,36 @@ internal sealed class CoreController : IDisposable
         }
     }
 
-    private void EnsureLatencyTestReady()
+    private async Task<int> TestNodeUrlLatencyCoreAsync(NodeProfile node, CancellationToken cancellationToken)
     {
-        if (!_processManager.IsRunning)
-        {
-            throw new InvalidOperationException("Connect first before running node latency tests.");
-        }
+        var controller = GetClashApiController();
+        var nodeTag = SingBoxTags.GetNodeTag(node);
 
+        try
+        {
+            await _clashApiClient.WaitUntilAvailableAsync(controller, Settings.ClashApiSecret, cancellationToken);
+            var delay = await _clashApiClient.TestProxyDelayAsync(
+                controller,
+                Settings.ClashApiSecret,
+                nodeTag,
+                DefaultDelayTestUrl,
+                DefaultDelayTimeoutMs,
+                cancellationToken);
+
+            _nodeUrlTestLatencies[node.Id] = delay;
+            _nodeUrlTestLatencyErrors.Remove(node.Id);
+            return delay;
+        }
+        catch (Exception ex)
+        {
+            _nodeUrlTestLatencies.Remove(node.Id);
+            _nodeUrlTestLatencyErrors[node.Id] = BuildLatencyErrorLabel(ex);
+            throw;
+        }
+    }
+
+    private void EnsurePingTestReady()
+    {
         if (!_nodes.Any(node => node.Enabled))
         {
             throw new InvalidOperationException("No enabled nodes are available for testing.");
@@ -1971,6 +2159,19 @@ internal sealed class CoreController : IDisposable
         };
     }
 
+    private static string BuildNodeDuplicateKey(NodeProfile node)
+    {
+        return string.Join(
+            '|',
+            node.Server.Trim().ToLowerInvariant(),
+            node.ServerPort.ToString(CultureInfo.InvariantCulture),
+            node.Username.Trim(),
+            node.Password,
+            node.TlsServerName.Trim().ToLowerInvariant(),
+            node.UseQuic ? "quic" : "tcp",
+            node.UseUdpOverTcp ? "uot" : "direct");
+    }
+
     private static SubscriptionProfile CloneSubscription(SubscriptionProfile source)
     {
         return new SubscriptionProfile
@@ -1981,6 +2182,9 @@ internal sealed class CoreController : IDisposable
             Enabled = source.Enabled,
             ImportedNodeCount = source.ImportedNodeCount,
             LastUpdated = source.LastUpdated,
+            LastRefreshStarted = source.LastRefreshStarted,
+            LastRefreshFinished = source.LastRefreshFinished,
+            LastRefreshDurationMilliseconds = source.LastRefreshDurationMilliseconds,
             LastError = source.LastError
         };
     }
@@ -1994,6 +2198,7 @@ internal sealed class CoreController : IDisposable
             NodeMode = source.NodeMode,
             SelectedNodeId = source.SelectedNodeId,
             ProxyMixedPort = source.ProxyMixedPort,
+            AllowLanConnections = source.AllowLanConnections,
             ClashApiPort = source.ClashApiPort,
             ClashApiSecret = source.ClashApiSecret,
             EnableAutoStart = source.EnableAutoStart,
@@ -2036,6 +2241,27 @@ internal sealed class CoreController : IDisposable
         catch (SocketException ex)
         {
             throw new InvalidOperationException($"127.0.0.1:{port} is already in use.", ex);
+        }
+        finally
+        {
+            listener?.Stop();
+        }
+    }
+
+    private static void EnsureProxyInboundPortAvailable(int port, bool allowLanConnections)
+    {
+        var address = allowLanConnections ? IPAddress.Any : IPAddress.Loopback;
+        var displayAddress = allowLanConnections ? "0.0.0.0" : "127.0.0.1";
+
+        TcpListener? listener = null;
+        try
+        {
+            listener = new TcpListener(address, port);
+            listener.Start();
+        }
+        catch (SocketException ex)
+        {
+            throw new InvalidOperationException($"{displayAddress}:{port} is already in use.", ex);
         }
         finally
         {

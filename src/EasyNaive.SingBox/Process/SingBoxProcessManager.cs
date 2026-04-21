@@ -2,6 +2,7 @@ using System.Text;
 using DiagnosticsDataReceivedEventArgs = System.Diagnostics.DataReceivedEventArgs;
 using DiagnosticsProcess = System.Diagnostics.Process;
 using DiagnosticsProcessStartInfo = System.Diagnostics.ProcessStartInfo;
+using EasyNaive.Core.Logging;
 
 namespace EasyNaive.SingBox.Process;
 
@@ -11,7 +12,7 @@ public sealed class SingBoxProcessManager : IDisposable
 
     private readonly object _syncRoot = new();
     private DiagnosticsProcess? _process;
-    private StreamWriter? _logWriter;
+    private RotatingLogFileWriter? _logWriter;
     private int? _lastExitCode;
 
     public event EventHandler<int?>? Exited;
@@ -244,12 +245,9 @@ public sealed class SingBoxProcessManager : IDisposable
         return startInfo;
     }
 
-    private static StreamWriter CreateLogWriter(string logPath)
+    private static RotatingLogFileWriter CreateLogWriter(string logPath)
     {
-        return new StreamWriter(new FileStream(logPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
-        {
-            AutoFlush = true
-        };
+        return new RotatingLogFileWriter(logPath);
     }
 
     private void OnProcessOutputDataReceived(object sender, DiagnosticsDataReceivedEventArgs e)

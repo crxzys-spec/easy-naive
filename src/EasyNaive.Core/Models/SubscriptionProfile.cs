@@ -14,5 +14,11 @@ public sealed class SubscriptionProfile
 
     public DateTimeOffset? LastUpdated { get; set; }
 
+    public DateTimeOffset? LastRefreshStarted { get; set; }
+
+    public DateTimeOffset? LastRefreshFinished { get; set; }
+
+    public long LastRefreshDurationMilliseconds { get; set; }
+
     public string LastError { get; set; } = string.Empty;
 }

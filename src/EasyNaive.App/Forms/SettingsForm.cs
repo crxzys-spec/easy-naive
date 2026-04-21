@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Windows.Forms;
+using EasyNaive.App.Presentation;
 using EasyNaive.Core.Models;
 
 namespace EasyNaive.App.Forms;
@@ -8,6 +9,7 @@ internal sealed class SettingsForm : Form
 {
     private readonly NumericUpDown _mixedPortNumeric;
     private readonly NumericUpDown _clashApiPortNumeric;
+    private readonly CheckBox _allowLanConnectionsCheckBox;
     private readonly ComboBox _logLevelComboBox;
     private readonly CheckBox _autoStartCheckBox;
     private readonly CheckBox _minimizeToTrayCheckBox;
@@ -23,15 +25,18 @@ internal sealed class SettingsForm : Form
         MaximizeBox = true;
         MinimizeBox = false;
         ShowInTaskbar = false;
-        ClientSize = new Size(700, 520);
-        MinimumSize = new Size(700, 520);
+        ClientSize = new Size(760, 560);
+        MinimumSize = new Size(720, 540);
+        BackColor = ModernTheme.BackgroundBottom;
+        Font = ModernTheme.BodyFont;
 
         var rootLayout = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
             RowCount = 2,
-            Padding = new Padding(12)
+            Padding = new Padding(14),
+            BackColor = ModernTheme.BackgroundBottom
         };
         rootLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         rootLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -39,7 +44,8 @@ internal sealed class SettingsForm : Form
         var contentPanel = new Panel
         {
             Dock = DockStyle.Fill,
-            AutoScroll = true
+            AutoScroll = true,
+            BackColor = ModernTheme.BackgroundBottom
         };
 
         var sectionsLayout = new TableLayoutPanel
@@ -56,7 +62,8 @@ internal sealed class SettingsForm : Form
             Dock = DockStyle.Top,
             MaximumSize = new Size(620, 0),
             Padding = new Padding(0, 0, 0, 8),
-            Text = "Adjust local ports and runtime behavior. Port, log level, and TUN route changes restart the core when already connected."
+            ForeColor = ModernTheme.MutedText,
+            Text = "Adjust local ports and runtime behavior. Port, LAN access, log level, and TUN route changes restart the core when already connected."
         };
         sectionsLayout.Controls.Add(introLabel, 0, 0);
 
@@ -64,6 +71,7 @@ internal sealed class SettingsForm : Form
         var portsLayout = CreateSectionLayout();
         _mixedPortNumeric = AddNumeric(portsLayout, 0, "Mixed Port", settings.ProxyMixedPort, "Local HTTP/SOCKS mixed inbound port used in Proxy mode.");
         _clashApiPortNumeric = AddNumeric(portsLayout, 1, "Clash API Port", settings.ClashApiPort, "Local controller port used by the tray app.");
+        _allowLanConnectionsCheckBox = AddCheckBox(portsLayout, 2, "Allow LAN connections", settings.AllowLanConnections, "Listen on 0.0.0.0 so other devices in the same LAN can use the mixed HTTP/SOCKS proxy. Windows Firewall must allow inbound access.");
         portsGroup.Controls.Add(portsLayout);
         sectionsLayout.Controls.Add(portsGroup, 0, 1);
 
@@ -106,17 +114,25 @@ internal sealed class SettingsForm : Form
         {
             AutoSize = true,
             MinimumSize = new Size(90, 32),
+            BackColor = ModernTheme.Accent,
+            ForeColor = Color.White,
+            FlatStyle = FlatStyle.Flat,
             Text = "Save"
         };
+        saveButton.FlatAppearance.BorderSize = 0;
         saveButton.Click += (_, _) => SaveAndClose();
 
         var cancelButton = new Button
         {
             AutoSize = true,
             MinimumSize = new Size(90, 32),
+            BackColor = ModernTheme.SurfaceStrong,
+            ForeColor = ModernTheme.Text,
+            FlatStyle = FlatStyle.Flat,
             Text = "Cancel",
             DialogResult = DialogResult.Cancel
         };
+        cancelButton.FlatAppearance.BorderSize = 0;
 
         buttonsPanel.Controls.Add(saveButton);
         buttonsPanel.Controls.Add(cancelButton);
@@ -142,6 +158,7 @@ internal sealed class SettingsForm : Form
         }
 
         Settings.ProxyMixedPort = mixedPort;
+        Settings.AllowLanConnections = _allowLanConnectionsCheckBox.Checked;
         Settings.ClashApiPort = clashApiPort;
         Settings.EnableAutoStart = _autoStartCheckBox.Checked;
         Settings.EnableMinimizeToTray = _minimizeToTrayCheckBox.Checked;
@@ -161,7 +178,8 @@ internal sealed class SettingsForm : Form
             Dock = DockStyle.Top,
             Margin = new Padding(0, 0, 0, 10),
             Padding = new Padding(10),
-            Text = text
+            Text = text,
+            ForeColor = ModernTheme.Text
         };
     }
 
@@ -219,6 +237,8 @@ internal sealed class SettingsForm : Form
         var host = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
             ColumnCount = 1,
             RowCount = 2,
             Margin = Padding.Empty
@@ -251,8 +271,8 @@ internal sealed class SettingsForm : Form
     {
         return new Label
         {
-            AutoSize = false,
-            Dock = DockStyle.Fill,
+            AutoSize = true,
+            Dock = DockStyle.Top,
             Padding = new Padding(0, 6, 0, 0),
             Text = text,
             TextAlign = ContentAlignment.TopLeft

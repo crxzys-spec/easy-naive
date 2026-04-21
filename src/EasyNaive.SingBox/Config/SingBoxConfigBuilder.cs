@@ -52,7 +52,7 @@ public sealed class SingBoxConfigBuilder
                 {
                     ["type"] = "mixed",
                     ["tag"] = "mixed-in",
-                    ["listen"] = "127.0.0.1",
+                    ["listen"] = settings.AllowLanConnections ? "0.0.0.0" : "127.0.0.1",
                     ["listen_port"] = settings.ProxyMixedPort
                 }
             },

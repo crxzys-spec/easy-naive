@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Windows.Forms;
+using EasyNaive.App.Diagnostics;
 using EasyNaive.App.Forms;
 using EasyNaive.App.Presentation;
 using EasyNaive.Core.Enums;
@@ -13,6 +14,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private readonly NotifyIcon _notifyIcon;
     private readonly Icon _trayIcon;
     private readonly Icon _trayStoppedIcon;
+    private readonly Icon _trayWaitingIcon;
     private readonly Icon _trayConnectedIcon;
     private readonly Icon _trayErrorIcon;
     private CoreStatus _lastKnownStatus;
@@ -28,6 +30,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _mainForm.Resize += MainFormOnResize;
         _trayIcon = AppIcons.CreateApplicationIcon();
         _trayStoppedIcon = AppIcons.CreateTrayStoppedIcon();
+        _trayWaitingIcon = AppIcons.CreateTrayWaitingIcon();
         _trayConnectedIcon = AppIcons.CreateTrayConnectedIcon();
         _trayErrorIcon = AppIcons.CreateTrayErrorIcon();
 
@@ -54,6 +57,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
             _notifyIcon.Dispose();
             _trayIcon.Dispose();
             _trayStoppedIcon.Dispose();
+            _trayWaitingIcon.Dispose();
             _trayConnectedIcon.Dispose();
             _trayErrorIcon.Dispose();
             _mainForm.Dispose();
@@ -77,7 +81,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         menu.Items.Add("Update Rule-Sets", null, async (_, _) => await UpdateRuleSetsAsync());
         menu.Items.Add("Run Self Check", null, async (_, _) => await RunSelfCheckAsync());
         menu.Items.Add("Open Data Folder", null, (_, _) => _controller.OpenDataDirectory());
-        menu.Items.Add("Open Logs", null, (_, _) => _controller.OpenLogsDirectory());
+        menu.Items.Add("Open Logs", null, (_, _) => OpenLogs());
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(BuildNodesMenu());
         menu.Items.Add(BuildCaptureModeMenu());
@@ -258,7 +262,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         }
         catch (Exception ex)
         {
-            _notifyIcon.ShowBalloonTip(5000, "EasyNaive", ex.Message, ToolTipIcon.Error);
+            _notifyIcon.ShowBalloonTip(5000, "EasyNaive", ErrorMessageTranslator.ToDisplayMessage(ex), ToolTipIcon.Error);
         }
         finally
         {
@@ -306,7 +310,8 @@ internal sealed class TrayApplicationContext : ApplicationContext
         }
         catch (Exception ex)
         {
-            _controller.MarkStartupRecoveryFailed(ex.Message);
+            var translatedMessage = ErrorMessageTranslator.ToDisplayMessage(ex);
+            _controller.MarkStartupRecoveryFailed(translatedMessage);
             _notifyIcon.ShowBalloonTip(
                 5000,
                 "EasyNaive",
@@ -317,7 +322,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
             {
                 MessageBox.Show(
                     _mainForm,
-                    $"Automatic recovery failed and has been disabled for the next launch.{Environment.NewLine}{Environment.NewLine}{ex.Message}",
+                    $"Automatic recovery failed and has been disabled for the next launch.{Environment.NewLine}{Environment.NewLine}{translatedMessage}",
                     "EasyNaive Recovery Failed",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Warning);
@@ -334,6 +339,12 @@ internal sealed class TrayApplicationContext : ApplicationContext
         using var dialog = new SubscriptionManagerForm(_controller);
         dialog.ShowDialog(_mainForm);
         RefreshUi();
+    }
+
+    private void OpenLogs()
+    {
+        using var dialog = new LogViewerForm(_controller);
+        dialog.ShowDialog(_mainForm);
     }
 
     private async Task OpenSettingsAsync()
@@ -366,7 +377,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         }
         catch (Exception ex)
         {
-            _notifyIcon.ShowBalloonTip(5000, "EasyNaive", ex.Message, ToolTipIcon.Error);
+            _notifyIcon.ShowBalloonTip(5000, "EasyNaive", ErrorMessageTranslator.ToDisplayMessage(ex), ToolTipIcon.Error);
         }
         finally
         {
@@ -397,7 +408,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         }
         catch (Exception ex)
         {
-            _notifyIcon.ShowBalloonTip(5000, "EasyNaive", ex.Message, ToolTipIcon.Error);
+            _notifyIcon.ShowBalloonTip(5000, "EasyNaive", ErrorMessageTranslator.ToDisplayMessage(ex), ToolTipIcon.Error);
         }
         finally
         {
@@ -423,6 +434,8 @@ internal sealed class TrayApplicationContext : ApplicationContext
         return _controller.RuntimeState.CoreStatus switch
         {
             CoreStatus.Running => _trayConnectedIcon,
+            CoreStatus.Starting => _trayWaitingIcon,
+            CoreStatus.Stopping => _trayWaitingIcon,
             CoreStatus.Error => _trayErrorIcon,
             CoreStatus.Stopped => _trayStoppedIcon,
             _ => _trayIcon
@@ -473,7 +486,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
                 _notifyIcon.ShowBalloonTip(
                     5000,
                     "EasyNaive",
-                    string.IsNullOrWhiteSpace(_controller.RuntimeState.LastError) ? "Connection error." : _controller.RuntimeState.LastError,
+                    string.IsNullOrWhiteSpace(_controller.RuntimeState.LastError) ? "Connection error." : ErrorMessageTranslator.ToDisplayMessage(_controller.RuntimeState.LastError),
                     ToolTipIcon.Error);
                 break;
         }

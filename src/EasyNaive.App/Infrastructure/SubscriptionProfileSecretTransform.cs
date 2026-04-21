@@ -46,6 +46,9 @@ internal sealed class SubscriptionProfileSecretTransform : IJsonFileStoreTransfo
             Enabled = source.Enabled,
             ImportedNodeCount = source.ImportedNodeCount,
             LastUpdated = source.LastUpdated,
+            LastRefreshStarted = source.LastRefreshStarted,
+            LastRefreshFinished = source.LastRefreshFinished,
+            LastRefreshDurationMilliseconds = source.LastRefreshDurationMilliseconds,
             LastError = source.LastError
         };
     }

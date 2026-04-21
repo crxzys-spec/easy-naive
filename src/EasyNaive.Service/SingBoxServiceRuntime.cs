@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text;
 using EasyNaive.Core.Enums;
+using EasyNaive.Core.Logging;
 using EasyNaive.Core.Models;
 using EasyNaive.SingBox.Process;
 using EasyNaive.SingBox.Service;
@@ -12,7 +13,7 @@ internal sealed class SingBoxServiceRuntime : IDisposable
     private static readonly TimeSpan StartupExitProbeDelay = TimeSpan.FromMilliseconds(300);
     private readonly object _syncRoot = new();
     private Process? _process;
-    private StreamWriter? _logWriter;
+    private RotatingLogFileWriter? _logWriter;
     private string _sessionPath = string.Empty;
     private int? _lastExitCode;
     private bool _stopping;
@@ -255,12 +256,9 @@ internal sealed class SingBoxServiceRuntime : IDisposable
         });
     }
 
-    private static StreamWriter CreateLogWriter(string logPath)
+    private static RotatingLogFileWriter CreateLogWriter(string logPath)
     {
-        return new StreamWriter(new FileStream(logPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
-        {
-            AutoFlush = true
-        };
+        return new RotatingLogFileWriter(logPath);
     }
 
     private void OnProcessOutputDataReceived(object sender, DataReceivedEventArgs e)

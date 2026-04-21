@@ -14,6 +14,8 @@ public sealed class AppSettings
 
     public int ProxyMixedPort { get; set; } = 2080;
 
+    public bool AllowLanConnections { get; set; }
+
     public int ClashApiPort { get; set; } = 9090;
 
     public string ClashApiSecret { get; set; } = Guid.NewGuid().ToString("N");

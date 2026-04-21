@@ -35,6 +35,7 @@ internal sealed class AppSettingsSecretTransform : IJsonFileStoreTransform<AppSe
             NodeMode = source.NodeMode,
             SelectedNodeId = source.SelectedNodeId,
             ProxyMixedPort = source.ProxyMixedPort,
+            AllowLanConnections = source.AllowLanConnections,
             ClashApiPort = source.ClashApiPort,
             ClashApiSecret = source.ClashApiSecret,
             EnableAutoStart = source.EnableAutoStart,

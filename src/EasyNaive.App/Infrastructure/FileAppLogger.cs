@@ -1,19 +1,15 @@
+using EasyNaive.Core.Logging;
+
 namespace EasyNaive.App.Infrastructure;
 
 internal sealed class FileAppLogger : IDisposable
 {
     private readonly object _syncRoot = new();
-    private readonly string _path;
-    private StreamWriter? _writer;
+    private RotatingLogFileWriter? _writer;
 
     public FileAppLogger(string path)
     {
-        _path = path;
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        _writer = new StreamWriter(new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
-        {
-            AutoFlush = true
-        };
+        _writer = new RotatingLogFileWriter(path);
     }
 
     public void Info(string message)

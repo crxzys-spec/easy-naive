@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Windows.Forms;
+using EasyNaive.App.Presentation;
 
 namespace EasyNaive.App.Forms;
 
@@ -20,13 +21,17 @@ internal sealed class ManualImportForm : Form
         MinimizeBox = false;
         ShowInTaskbar = false;
         ClientSize = new Size(720, 520);
+        MinimumSize = new Size(720, 520);
+        BackColor = ModernTheme.BackgroundBottom;
+        Font = ModernTheme.BodyFont;
 
         var layout = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 2,
             RowCount = 3,
-            Padding = new Padding(12)
+            Padding = new Padding(14),
+            BackColor = ModernTheme.BackgroundBottom
         };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -37,7 +42,9 @@ internal sealed class ManualImportForm : Form
         _sourceNameTextBox = new TextBox
         {
             Dock = DockStyle.Fill,
-            Text = sourceName
+            Text = sourceName,
+            BackColor = ModernTheme.SurfaceStrong,
+            ForeColor = ModernTheme.Text
         };
         layout.Controls.Add(CreateLabel("Source"), 0, 0);
         layout.Controls.Add(_sourceNameTextBox, 1, 0);
@@ -49,7 +56,9 @@ internal sealed class ManualImportForm : Form
             ScrollBars = ScrollBars.Both,
             WordWrap = false,
             Font = new Font("Consolas", 10.0f),
-            Text = content
+            Text = content,
+            BackColor = ModernTheme.SurfaceStrong,
+            ForeColor = ModernTheme.Text
         };
         layout.Controls.Add(CreateLabel("Content"), 0, 1);
         layout.Controls.Add(_contentTextBox, 1, 1);
@@ -64,16 +73,26 @@ internal sealed class ManualImportForm : Form
         var importButton = new Button
         {
             AutoSize = true,
+            MinimumSize = new Size(90, 32),
+            BackColor = ModernTheme.Accent,
+            ForeColor = Color.White,
+            FlatStyle = FlatStyle.Flat,
             Text = "Import"
         };
+        importButton.FlatAppearance.BorderSize = 0;
         importButton.Click += (_, _) => SaveAndClose();
 
         var cancelButton = new Button
         {
             AutoSize = true,
+            MinimumSize = new Size(90, 32),
+            BackColor = ModernTheme.SurfaceStrong,
+            ForeColor = ModernTheme.Text,
+            FlatStyle = FlatStyle.Flat,
             Text = "Cancel",
             DialogResult = DialogResult.Cancel
         };
+        cancelButton.FlatAppearance.BorderSize = 0;
 
         buttonsPanel.Controls.Add(importButton);
         buttonsPanel.Controls.Add(cancelButton);
@@ -120,6 +139,7 @@ internal sealed class ManualImportForm : Form
         {
             AutoSize = false,
             Dock = DockStyle.Fill,
+            ForeColor = ModernTheme.MutedText,
             Text = text,
             TextAlign = ContentAlignment.MiddleLeft
         };

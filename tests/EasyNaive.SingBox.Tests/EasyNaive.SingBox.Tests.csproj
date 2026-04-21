@@ -19,6 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\EasyNaive.Core\EasyNaive.Core.csproj" />
     <ProjectReference Include="..\..\src\EasyNaive.SingBox\EasyNaive.SingBox.csproj" />
   </ItemGroup>
 </Project>

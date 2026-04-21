@@ -3,8 +3,9 @@
     <OutputType>Package</OutputType>
     <Platform>x64</Platform>
     <InstallerProductVersion Condition="'$(InstallerProductVersion)' == ''">0.1.1</InstallerProductVersion>
+    <InstallerArtifactVersion Condition="'$(InstallerArtifactVersion)' == ''">$(InstallerProductVersion)</InstallerArtifactVersion>
     <PackageSourceRoot Condition="'$(PackageSourceRoot)' == ''">$(MSBuildThisFileDirectory)..\..\artifacts\package\Release\win-x64\latest</PackageSourceRoot>
-    <OutputName>EasyNaive-$(InstallerProductVersion)-$(Platform)</OutputName>
+    <OutputName>EasyNaive-$(InstallerArtifactVersion)-$(Platform)</OutputName>
     <DefineConstants>PackageSourceRoot=$(PackageSourceRoot);InstallerProductVersion=$(InstallerProductVersion)</DefineConstants>
     <SuppressIces>ICE61</SuppressIces>
   </PropertyGroup>

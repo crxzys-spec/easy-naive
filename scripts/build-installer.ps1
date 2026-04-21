@@ -48,6 +48,7 @@ New-Item -ItemType Directory -Path $installerOutput -Force | Out-Null
     -c $Configuration `
     "-p:PackageSourceRoot=$($latestLayout.FullName)" `
     "-p:InstallerProductVersion=$installerVersion" `
+    "-p:InstallerArtifactVersion=$Version" `
     "-p:OutputPath=$installerOutput\"
 
 if ($LASTEXITCODE -ne 0) {
