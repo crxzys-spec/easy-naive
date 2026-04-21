@@ -16,6 +16,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EasyNaive.SingBox.Tests", "
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EasyNaive.App.Tests", "tests\EasyNaive.App.Tests\EasyNaive.App.Tests.csproj", "{0DAE0C4A-C8BB-4249-8C5E-CEC285F52DEE}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EasyNaive.Service", "src\EasyNaive.Service\EasyNaive.Service.csproj", "{A930A91A-C969-4422-90B5-691F60CFCACF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -50,6 +52,10 @@ Global
 		{0DAE0C4A-C8BB-4249-8C5E-CEC285F52DEE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0DAE0C4A-C8BB-4249-8C5E-CEC285F52DEE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0DAE0C4A-C8BB-4249-8C5E-CEC285F52DEE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A930A91A-C969-4422-90B5-691F60CFCACF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A930A91A-C969-4422-90B5-691F60CFCACF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A930A91A-C969-4422-90B5-691F60CFCACF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A930A91A-C969-4422-90B5-691F60CFCACF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

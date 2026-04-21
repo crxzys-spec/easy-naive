@@ -2,7 +2,7 @@
 
 ## Current Version
 
-- Product version: `0.1.0-local`
+- Product version: `0.1.1-preview.2`
 - Target platform: `Windows x64`
 - Runtime requirement: `Microsoft .NET Desktop Runtime 8 (x64)`
 

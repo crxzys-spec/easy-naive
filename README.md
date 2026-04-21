@@ -22,6 +22,7 @@ review.
 - Node sharing through importable `naive://` links, clipboard copy, and text export.
 - App logs, sing-box logs, self-checks, traffic display, and tray status icons.
 - Portable package and WiX MSI build scripts.
+- MSI-installed Windows service for TUN start/stop without repeated UAC prompts.
 
 ## Known Limits
 
@@ -39,6 +40,7 @@ src/
   EasyNaive.SingBox/          Config generation, Clash API, process control
   EasyNaive.Platform.Windows/ Windows-specific integration
   EasyNaive.Elevation/        Elevated helper for TUN mode
+  EasyNaive.Service/          Windows service for MSI-installed TUN mode
 
 tests/
   EasyNaive.App.Tests/
@@ -97,6 +99,10 @@ The MSI is written to:
 ```text
 artifacts/installer/Release/win-x64/
 ```
+
+The MSI installs and starts `EasyNaiveService`. TUN mode uses this service first
+and falls back to `EasyNaive.Elevation.exe` when the service is unavailable, such
+as in portable builds.
 
 ## User Data
 

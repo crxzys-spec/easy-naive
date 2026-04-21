@@ -41,6 +41,7 @@ internal sealed class MainForm : Form
     private readonly Button _copyShareLinkButton;
     private readonly Button _exportNodesButton;
     private readonly DataGridView _nodesGrid;
+    private readonly ContextMenuStrip _nodesContextMenu;
     private readonly TextBox _nodeSearchTextBox;
     private readonly ComboBox _groupFilterComboBox;
     private readonly Label _nodeFilterSummaryLabel;
@@ -370,6 +371,7 @@ internal sealed class MainForm : Form
         nodeFilterPanel.Controls.Add(nodeFilterControls, 0, 0);
         nodeFilterPanel.Controls.Add(_nodeFilterSummaryLabel, 1, 0);
 
+        _nodesContextMenu = CreateNodesContextMenu();
         _nodesGrid = CreateNodesGrid();
 
         nodeHeaderPanel.Controls.Add(nodeActionPanel, 0, 0);
@@ -569,6 +571,7 @@ internal sealed class MainForm : Form
         });
 
         grid.SelectionChanged += (_, _) => SyncNodeActions();
+        grid.MouseDown += NodesGridOnMouseDown;
         grid.CellDoubleClick += async (_, e) =>
         {
             if (e.RowIndex >= 0)
@@ -578,6 +581,51 @@ internal sealed class MainForm : Form
         };
 
         return grid;
+    }
+
+    private ContextMenuStrip CreateNodesContextMenu()
+    {
+        var menu = new ContextMenuStrip();
+        var addNodeItem = new ToolStripMenuItem("Add Node", null, async (_, _) => await AddNodeAsync());
+        var useNowItem = new ToolStripMenuItem("Use Now (Manual Mode)", null, async (_, _) => await UseSelectedNodeAndSwitchToManualAsync());
+        var useManualItem = new ToolStripMenuItem("Set as Manual Node", null, async (_, _) => await UseSelectedNodeAsync());
+        var testItem = new ToolStripMenuItem("Test Selected", null, async (_, _) => await TestSelectedNodeAsync());
+        var editItem = new ToolStripMenuItem("Edit", null, async (_, _) => await EditNodeAsync());
+        var deleteItem = new ToolStripMenuItem("Delete", null, async (_, _) => await DeleteNodeAsync());
+        var copyShareItem = new ToolStripMenuItem("Copy Share Link", null, async (_, _) => await CopySelectedNodeShareLinksAsync());
+        var exportItem = new ToolStripMenuItem("Export Selected", null, async (_, _) => await ExportSelectedNodesAsync());
+
+        menu.Items.Add(addNodeItem);
+        menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add(useNowItem);
+        menu.Items.Add(useManualItem);
+        menu.Items.Add(testItem);
+        menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add(editItem);
+        menu.Items.Add(deleteItem);
+        menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add(copyShareItem);
+        menu.Items.Add(exportItem);
+
+        menu.Opening += (_, _) =>
+        {
+            var selectedNodeIds = GetSelectedGridNodeIds();
+            var selectedNodes = GetSelectedGridNodes();
+            var firstSelectedNode = selectedNodes.FirstOrDefault();
+            var hasSingleSelection = selectedNodeIds.Count == 1;
+            var hasAnySelection = selectedNodeIds.Count > 0;
+            var canUseFirstSelection = hasSingleSelection && firstSelectedNode?.Enabled == true;
+
+            useNowItem.Enabled = canUseFirstSelection;
+            useManualItem.Enabled = canUseFirstSelection;
+            testItem.Enabled = canUseFirstSelection;
+            editItem.Enabled = hasSingleSelection;
+            deleteItem.Enabled = hasSingleSelection;
+            copyShareItem.Enabled = hasAnySelection;
+            exportItem.Enabled = hasAnySelection;
+        };
+
+        return menu;
     }
 
     private void PopulateNodesGrid()
@@ -780,6 +828,21 @@ internal sealed class MainForm : Form
         }
 
         await ExecuteAsync(ct => _controller.SetSelectedNodeAsync(nodeId, ct));
+    }
+
+    private async Task UseSelectedNodeAndSwitchToManualAsync()
+    {
+        var nodeId = GetSelectedGridNodeId();
+        if (string.IsNullOrWhiteSpace(nodeId))
+        {
+            return;
+        }
+
+        await ExecuteAsync(async ct =>
+        {
+            await _controller.SetSelectedNodeAsync(nodeId, ct);
+            await _controller.SetNodeModeAsync(NodeMode.Manual, ct);
+        });
     }
 
     private async Task TestSelectedNodeAsync()
@@ -1018,6 +1081,32 @@ internal sealed class MainForm : Form
             var currentId = row.Cells["Id"].Value?.ToString();
             row.Selected = string.Equals(currentId, nodeId, StringComparison.Ordinal);
         }
+    }
+
+    private void NodesGridOnMouseDown(object? sender, MouseEventArgs e)
+    {
+        if (e.Button != MouseButtons.Right)
+        {
+            return;
+        }
+
+        var hitTest = _nodesGrid.HitTest(e.X, e.Y);
+        if (hitTest.RowIndex < 0)
+        {
+            _nodesGrid.ClearSelection();
+            _nodesContextMenu.Show(_nodesGrid, e.Location);
+            return;
+        }
+
+        var row = _nodesGrid.Rows[hitTest.RowIndex];
+        if (!row.Selected)
+        {
+            _nodesGrid.ClearSelection();
+            row.Selected = true;
+        }
+
+        _nodesGrid.CurrentCell = row.Cells[Math.Max(hitTest.ColumnIndex, 0)];
+        _nodesContextMenu.Show(_nodesGrid, e.Location);
     }
 
     private void SyncNodeActions()

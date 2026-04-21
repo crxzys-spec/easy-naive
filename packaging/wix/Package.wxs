@@ -59,6 +59,7 @@
       <ComponentGroupRef Id="DocumentationFiles" />
       <ComponentGroupRef Id="SingBoxFiles" />
       <ComponentGroupRef Id="MachineRegistration" />
+      <ComponentGroupRef Id="WindowsService" />
       <ComponentGroupRef Id="StartMenuCleanup" />
       <ComponentGroupRef Id="DesktopShortcut" />
     </Feature>
@@ -115,8 +116,50 @@
       <Component Id="cmpEasyNaiveElevationRuntimeConfig">
         <File Source="$(var.PackageSourceRoot)\EasyNaive.Elevation.runtimeconfig.json" KeyPath="yes" />
       </Component>
+      <Component Id="cmpEasyNaiveServiceDll">
+        <File Source="$(var.PackageSourceRoot)\EasyNaive.Service.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="cmpEasyNaiveServiceDeps">
+        <File Source="$(var.PackageSourceRoot)\EasyNaive.Service.deps.json" KeyPath="yes" />
+      </Component>
+      <Component Id="cmpEasyNaiveServiceRuntimeConfig">
+        <File Source="$(var.PackageSourceRoot)\EasyNaive.Service.runtimeconfig.json" KeyPath="yes" />
+      </Component>
+      <Component Id="cmpSystemDiagnosticsEventLogDll">
+        <File Source="$(var.PackageSourceRoot)\System.Diagnostics.EventLog.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="cmpSystemDiagnosticsEventLogMessagesDll">
+        <File Source="$(var.PackageSourceRoot)\System.Diagnostics.EventLog.Messages.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="cmpSystemServiceProcessServiceControllerDll">
+        <File Source="$(var.PackageSourceRoot)\System.ServiceProcess.ServiceController.dll" KeyPath="yes" />
+      </Component>
       <Component Id="cmpPackageManifest">
         <File Source="$(var.PackageSourceRoot)\package-manifest.json" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+
+  <Fragment>
+    <ComponentGroup Id="WindowsService" Directory="INSTALLFOLDER">
+      <Component Id="cmpEasyNaiveServiceExe" Bitness="always64">
+        <File Id="filEasyNaiveServiceExe" Source="$(var.PackageSourceRoot)\EasyNaive.Service.exe" KeyPath="yes" />
+        <ServiceInstall
+          Id="svcEasyNaiveServiceInstall"
+          Type="ownProcess"
+          Name="EasyNaiveService"
+          DisplayName="EasyNaive Service"
+          Description="Runs elevated sing-box TUN sessions for EasyNaive without repeated UAC prompts."
+          Start="auto"
+          Account="LocalSystem"
+          ErrorControl="normal" />
+        <ServiceControl
+          Id="svcEasyNaiveServiceControl"
+          Name="EasyNaiveService"
+          Start="install"
+          Stop="both"
+          Remove="uninstall"
+          Wait="yes" />
       </Component>
     </ComponentGroup>
   </Fragment>

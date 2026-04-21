@@ -1,5 +1,6 @@
 using EasyNaive.Core.Enums;
 using EasyNaive.Core.Models;
+using EasyNaive.SingBox.Service;
 using DiagnosticsProcess = System.Diagnostics.Process;
 using DiagnosticsProcessStartInfo = System.Diagnostics.ProcessStartInfo;
 
@@ -8,11 +9,24 @@ namespace EasyNaive.SingBox.Process;
 public sealed class ElevatedSingBoxProcessManager : IDisposable
 {
     private readonly object _syncRoot = new();
+    private readonly SingBoxServiceClient _serviceClient;
     private DiagnosticsProcess? _process;
     private string? _sessionPath;
+    private int? _serviceProcessId;
     private CancellationTokenSource? _exitMonitorCancellationTokenSource;
     private Task? _exitMonitorTask;
     private bool _suppressExitEvent;
+    private bool _startedByService;
+
+    public ElevatedSingBoxProcessManager()
+        : this(new SingBoxServiceClient())
+    {
+    }
+
+    internal ElevatedSingBoxProcessManager(SingBoxServiceClient serviceClient)
+    {
+        _serviceClient = serviceClient;
+    }
 
     public event EventHandler<int?>? Exited;
 
@@ -22,6 +36,11 @@ public sealed class ElevatedSingBoxProcessManager : IDisposable
         {
             lock (_syncRoot)
             {
+                if (_startedByService)
+                {
+                    return _serviceProcessId is > 0;
+                }
+
                 return TryIsRunning(_process);
             }
         }
@@ -33,6 +52,11 @@ public sealed class ElevatedSingBoxProcessManager : IDisposable
         {
             lock (_syncRoot)
             {
+                if (_startedByService)
+                {
+                    return _serviceProcessId;
+                }
+
                 return TryGetProcessId(_process);
             }
         }
@@ -40,19 +64,9 @@ public sealed class ElevatedSingBoxProcessManager : IDisposable
 
     public async Task StartAsync(SingBoxStartOptions options, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(options.ElevationExecutablePath))
-        {
-            throw new InvalidOperationException("Elevation executable path is required for elevated startup.");
-        }
-
         if (string.IsNullOrWhiteSpace(options.ElevationSessionPath))
         {
             throw new InvalidOperationException("Elevation session path is required for elevated startup.");
-        }
-
-        if (!File.Exists(options.ElevationExecutablePath))
-        {
-            throw new FileNotFoundException("Elevation helper executable was not found.", options.ElevationExecutablePath);
         }
 
         var sessionDirectory = Path.GetDirectoryName(options.ElevationSessionPath);
@@ -67,6 +81,21 @@ public sealed class ElevatedSingBoxProcessManager : IDisposable
         }
 
         _sessionPath = options.ElevationSessionPath;
+
+        if (await TryStartViaServiceAsync(options, cancellationToken))
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(options.ElevationExecutablePath))
+        {
+            throw new InvalidOperationException("Elevation executable path is required for elevated startup.");
+        }
+
+        if (!File.Exists(options.ElevationExecutablePath))
+        {
+            throw new FileNotFoundException("Elevation helper executable was not found.", options.ElevationExecutablePath);
+        }
 
         var helperProcess = DiagnosticsProcess.Start(CreateHelperStartInfo(
             options.ElevationExecutablePath,
@@ -98,7 +127,7 @@ public sealed class ElevatedSingBoxProcessManager : IDisposable
                         var process = TryAttachToProcess(session.SingBoxProcessId);
                         if (process is not null)
                         {
-                            AttachProcess(process, options.ElevationSessionPath);
+                            AttachProcess(process, options.ElevationSessionPath, startedByService: false);
                             return;
                         }
                     }
@@ -137,6 +166,36 @@ public sealed class ElevatedSingBoxProcessManager : IDisposable
 
         if (!string.IsNullOrWhiteSpace(effectiveSessionPath) && File.Exists(effectiveSessionPath))
         {
+            var stoppedByService = await TryStopViaServiceAsync(effectiveSessionPath, cancellationToken);
+            if (stoppedByService)
+            {
+                if (process is not null && TryIsRunning(process))
+                {
+                    var timeoutAt = DateTimeOffset.UtcNow.AddSeconds(10);
+                    while (TryIsRunning(process) && DateTimeOffset.UtcNow < timeoutAt)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        await Task.Delay(TimeSpan.FromMilliseconds(250), cancellationToken);
+                    }
+                }
+
+                if (File.Exists(effectiveSessionPath))
+                {
+                    ElevationSessionStore.MarkStopped(effectiveSessionPath);
+                }
+
+                lock (_syncRoot)
+                {
+                    CleanupProcess();
+                    _sessionPath = null;
+                    _serviceProcessId = null;
+                    _startedByService = false;
+                    _suppressExitEvent = false;
+                }
+
+                return;
+            }
+
             var session = ElevationSessionStore.TryRead(effectiveSessionPath);
             if (session is not null && ShouldInvokeStopHelper(session))
             {
@@ -163,6 +222,8 @@ public sealed class ElevatedSingBoxProcessManager : IDisposable
         {
             CleanupProcess();
             _sessionPath = null;
+            _serviceProcessId = null;
+            _startedByService = false;
             _suppressExitEvent = false;
         }
     }
@@ -174,16 +235,34 @@ public sealed class ElevatedSingBoxProcessManager : IDisposable
         {
             CleanupProcess();
             _sessionPath = null;
+            _serviceProcessId = null;
+            _startedByService = false;
         }
     }
 
-    private void AttachProcess(DiagnosticsProcess process, string sessionPath)
+    private void AttachProcess(DiagnosticsProcess process, string sessionPath, bool startedByService)
     {
         lock (_syncRoot)
         {
             CleanupProcess();
             _process = process;
             _sessionPath = sessionPath;
+            _serviceProcessId = null;
+            _startedByService = startedByService;
+            _suppressExitEvent = false;
+        }
+
+        StartExitMonitor(sessionPath);
+    }
+
+    private void AttachServiceSession(int processId, string sessionPath)
+    {
+        lock (_syncRoot)
+        {
+            CleanupProcess();
+            _serviceProcessId = processId;
+            _sessionPath = sessionPath;
+            _startedByService = true;
             _suppressExitEvent = false;
         }
 
@@ -238,11 +317,45 @@ public sealed class ElevatedSingBoxProcessManager : IDisposable
 
             DiagnosticsProcess? process;
             bool suppressExitEvent;
+            bool startedByService;
+            int? serviceProcessId;
 
             lock (_syncRoot)
             {
                 process = _process;
                 suppressExitEvent = _suppressExitEvent;
+                startedByService = _startedByService;
+                serviceProcessId = _serviceProcessId;
+            }
+
+            if (startedByService)
+            {
+                var serviceStatus = await _serviceClient.GetStatusAsync(cancellationToken);
+                if (serviceStatus is null ||
+                    serviceStatus.Success &&
+                    string.Equals(serviceStatus.Status, ElevationSessionStatus.Running.ToString(), StringComparison.OrdinalIgnoreCase) &&
+                    (serviceStatus.ProcessId is null || serviceStatus.ProcessId == serviceProcessId))
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
+                    continue;
+                }
+
+                ElevationSessionStore.MarkStopped(sessionPath, serviceStatus.ExitCode);
+
+                lock (_syncRoot)
+                {
+                    CleanupProcess();
+                    _sessionPath = null;
+                    _serviceProcessId = null;
+                    _startedByService = false;
+                }
+
+                if (!suppressExitEvent)
+                {
+                    Exited?.Invoke(this, serviceStatus.ExitCode);
+                }
+
+                return;
             }
 
             if (!TryIsRunning(process))
@@ -254,6 +367,8 @@ public sealed class ElevatedSingBoxProcessManager : IDisposable
                 {
                     CleanupProcess();
                     _sessionPath = null;
+                    _serviceProcessId = null;
+                    _startedByService = false;
                 }
 
                 if (!suppressExitEvent)
@@ -266,6 +381,76 @@ public sealed class ElevatedSingBoxProcessManager : IDisposable
 
             await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
         }
+    }
+
+    private async Task<bool> TryStartViaServiceAsync(SingBoxStartOptions options, CancellationToken cancellationToken)
+    {
+        var response = await _serviceClient.StartAsync(
+            options.ExecutablePath,
+            options.ConfigPath,
+            options.WorkingDirectory,
+            options.LogPath,
+            options.ElevationSessionPath!,
+            cancellationToken);
+
+        if (response is null)
+        {
+            return false;
+        }
+
+        if (!response.Success)
+        {
+            throw new InvalidOperationException(
+                string.IsNullOrWhiteSpace(response.Message)
+                    ? "EasyNaive service failed to start TUN mode."
+                    : response.Message);
+        }
+
+        if (response.ProcessId is not int processId || processId <= 0)
+        {
+            throw new InvalidOperationException("EasyNaive service did not return a sing-box process id.");
+        }
+
+        AttachServiceSession(processId, options.ElevationSessionPath!);
+        return true;
+    }
+
+    private async Task<bool> TryStopViaServiceAsync(string sessionPath, CancellationToken cancellationToken)
+    {
+        bool shouldTryService;
+
+        lock (_syncRoot)
+        {
+            shouldTryService = _startedByService;
+        }
+
+        var session = ElevationSessionStore.TryRead(sessionPath);
+        if (!shouldTryService && session is not null)
+        {
+            var executableName = Path.GetFileName(session.ElevationExecutablePath);
+            shouldTryService = string.Equals(executableName, "EasyNaive.Service.exe", StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (!shouldTryService)
+        {
+            return false;
+        }
+
+        var response = await _serviceClient.StopAsync(sessionPath, cancellationToken);
+        if (response is null)
+        {
+            return false;
+        }
+
+        if (!response.Success)
+        {
+            throw new InvalidOperationException(
+                string.IsNullOrWhiteSpace(response.Message)
+                    ? "EasyNaive service failed to stop TUN mode."
+                    : response.Message);
+        }
+
+        return true;
     }
 
     private static async Task InvokeStopHelperAsync(string sessionPath, CancellationToken cancellationToken)

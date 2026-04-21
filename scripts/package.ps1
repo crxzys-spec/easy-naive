@@ -24,6 +24,7 @@ if ($LASTEXITCODE -ne 0) { throw "build-app.ps1 failed." }
 $publishRoot = Join-Path $repoRoot "artifacts\publish\$Configuration\$RuntimeIdentifier"
 $appPublish = Join-Path $publishRoot 'EasyNaive.App'
 $elevationPublish = Join-Path $publishRoot 'EasyNaive.Elevation'
+$servicePublish = Join-Path $publishRoot 'EasyNaive.Service'
 $singBoxSource = Join-Path $repoRoot 'bin\sing-box'
 $singBoxTarget = Join-Path $layoutRoot 'sing-box'
 $docsTarget = Join-Path $layoutRoot 'docs'
@@ -42,6 +43,7 @@ New-Item -ItemType Directory -Path $docsTarget -Force | Out-Null
 
 Copy-Item -Path (Join-Path $appPublish '*') -Destination $layoutRoot -Recurse -Force
 Copy-Item -Path (Join-Path $elevationPublish '*') -Destination $layoutRoot -Recurse -Force
+Copy-Item -Path (Join-Path $servicePublish '*') -Destination $layoutRoot -Recurse -Force
 
 foreach ($fileName in 'sing-box.exe', 'libcronet.dll', 'LICENSE')
 {
@@ -75,6 +77,13 @@ $requiredFiles = @(
     'EasyNaive.Elevation.dll',
     'EasyNaive.Elevation.deps.json',
     'EasyNaive.Elevation.runtimeconfig.json',
+    'EasyNaive.Service.exe',
+    'EasyNaive.Service.dll',
+    'EasyNaive.Service.deps.json',
+    'EasyNaive.Service.runtimeconfig.json',
+    'System.Diagnostics.EventLog.dll',
+    'System.Diagnostics.EventLog.Messages.dll',
+    'System.ServiceProcess.ServiceController.dll',
     'Assets\App.ico',
     'Assets\TrayConnected.ico',
     'Assets\TrayError.ico',

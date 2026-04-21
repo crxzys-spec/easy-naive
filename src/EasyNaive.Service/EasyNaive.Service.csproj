@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <AssemblyName>EasyNaive.Service</AssemblyName>
+    <RootNamespace>EasyNaive.Service</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.ServiceProcess.ServiceController" Version="8.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\EasyNaive.Core\EasyNaive.Core.csproj" />
+    <ProjectReference Include="..\EasyNaive.SingBox\EasyNaive.SingBox.csproj" />
+  </ItemGroup>
+</Project>

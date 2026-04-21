@@ -16,6 +16,7 @@ if ([string]::IsNullOrWhiteSpace($Version)) {
 $publishRoot = Join-Path $repoRoot "artifacts\publish\$Configuration\$RuntimeIdentifier"
 $appOutput = Join-Path $publishRoot 'EasyNaive.App'
 $elevationOutput = Join-Path $publishRoot 'EasyNaive.Elevation'
+$serviceOutput = Join-Path $publishRoot 'EasyNaive.Service'
 
 $commonArgs = @(
     '-c', $Configuration,
@@ -30,5 +31,9 @@ if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed for EasyNaive.App." }
 & dotnet publish (Join-Path $repoRoot 'src\EasyNaive.Elevation\EasyNaive.Elevation.csproj') @commonArgs '-o' $elevationOutput
 if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed for EasyNaive.Elevation." }
 
+& dotnet publish (Join-Path $repoRoot 'src\EasyNaive.Service\EasyNaive.Service.csproj') @commonArgs '-o' $serviceOutput
+if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed for EasyNaive.Service." }
+
 Write-Host "App publish output: $appOutput"
 Write-Host "Elevation publish output: $elevationOutput"
+Write-Host "Service publish output: $serviceOutput"

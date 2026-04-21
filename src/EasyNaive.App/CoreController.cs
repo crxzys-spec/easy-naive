@@ -701,7 +701,7 @@ internal sealed class CoreController : IDisposable
         Settings.SelectedNodeId = nodeId;
         EnsureSelectedNode();
         RefreshCurrentLatency();
-        return PersistAndHotApplyIfRunningAsync(ApplySelectedNodeAsync, cancellationToken);
+        return PersistAndHotApplyIfRunningAsync(ApplySelectedNodeTransitionAsync, cancellationToken);
     }
 
     public async Task UpdateGeneralSettingsAsync(AppSettings updatedSettings, CancellationToken cancellationToken = default)
@@ -1437,6 +1437,28 @@ internal sealed class CoreController : IDisposable
             await RefreshCurrentRealNodeStateAsync(cancellationToken);
             RefreshCurrentLatency();
         }
+    }
+
+    private async Task ApplySelectedNodeTransitionAsync(CancellationToken cancellationToken)
+    {
+        await ApplySelectedNodeAsync(cancellationToken);
+
+        if (Settings.NodeMode != NodeMode.Manual)
+        {
+            return;
+        }
+
+        var controller = GetClashApiController();
+        UpdateRuntimeState(state => state.StatusDetail = "Refreshing active connections");
+        await _clashApiClient.CloseAllConnectionsAsync(controller, Settings.ClashApiSecret, cancellationToken);
+
+        UpdateRuntimeState(state =>
+        {
+            if (state.CoreStatus == CoreStatus.Running)
+            {
+                state.StatusDetail = "Connected";
+            }
+        });
     }
 
     private async Task ApplyNodeModeAsync(CancellationToken cancellationToken)

@@ -23,6 +23,7 @@ Date:
 - [ ] Extract the portable zip to a new folder.
 - [ ] Confirm the folder contains `EasyNaiveTray.exe`.
 - [ ] Confirm the folder contains `EasyNaive.Elevation.exe`.
+- [ ] Confirm the folder contains `EasyNaive.Service.exe`.
 - [ ] Confirm the folder contains `sing-box\sing-box.exe`.
 - [ ] Confirm the folder contains `sing-box\libcronet.dll`.
 - [ ] Confirm the folder contains `docs\LICENSE`.
@@ -116,10 +117,10 @@ Use a test machine or VM if possible.
 
 - [ ] Set Capture Mode to `Tun`.
 - [ ] Click `Connect`.
-- [ ] UAC prompt appears for `EasyNaive.Elevation.exe`.
-- [ ] Approve UAC.
+- [ ] Portable build: UAC prompt appears for `EasyNaive.Elevation.exe`.
+- [ ] MSI install: no repeated UAC prompt appears after `EasyNaiveService` is installed and running.
 - [ ] Status becomes `Connected`.
-- [ ] Header/status detail shows TUN helper session information.
+- [ ] Header/status detail shows TUN helper or service session information.
 - [ ] Browser can access an external site.
 - [ ] Rule Mode works in TUN mode.
 - [ ] Global Mode works in TUN mode.
@@ -155,12 +156,14 @@ Use a test machine or VM if possible.
 - [ ] Run the MSI installer.
 - [ ] Installer blocks or warns clearly if .NET Desktop Runtime 8 is missing.
 - [ ] Install succeeds.
+- [ ] `EasyNaiveService` is installed and running.
 - [ ] Start Menu shortcut is created.
 - [ ] Desktop shortcut is created.
 - [ ] Launch from Start Menu works.
 - [ ] Installed app can connect in Proxy mode.
 - [ ] Installed app can run Self Check.
 - [ ] Uninstall succeeds.
+- [ ] `EasyNaiveService` is removed.
 - [ ] Program files are removed.
 - [ ] `%LocalAppData%\EasyNaive` is preserved.
 
