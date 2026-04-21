@@ -283,34 +283,23 @@ public sealed class SingBoxConfigBuilder
             },
             ["rules"] = rules,
             ["final"] = settings.RouteMode == RouteMode.Direct ? "dns-direct" : "dns-proxy",
+            ["strategy"] = "ipv4_only",
             ["reverse_mapping"] = true
         };
-
-        if (settings.CaptureMode == CaptureMode.Tun)
-        {
-            dns["strategy"] = "ipv4_only";
-        }
 
         return dns;
     }
 
-    private static JsonObject BuildDirectDnsServer(AppSettings settings)
+    private static JsonObject BuildDirectDnsServer(AppSettings _)
     {
-        if (settings.CaptureMode == CaptureMode.Tun)
-        {
-            return new JsonObject
-            {
-                ["type"] = "udp",
-                ["tag"] = "dns-direct",
-                ["server"] = "223.5.5.5",
-                ["detour"] = SingBoxTags.Direct
-            };
-        }
-
+        // Avoid relying on the platform resolver here: in Rule/Direct modes the
+        // direct DNS path is also what keeps domestic sites off the proxy path.
         return new JsonObject
         {
-            ["type"] = "local",
+            ["type"] = "udp",
             ["tag"] = "dns-direct",
+            ["server"] = "223.5.5.5",
+            ["server_port"] = 53,
             ["detour"] = SingBoxTags.Direct
         };
     }
