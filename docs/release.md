@@ -34,6 +34,12 @@ powershell -ExecutionPolicy Bypass -File .\scripts\build-installer.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\build-installer.ps1 -Version 0.1.1
 ```
 
+## Installer Upgrade Behavior
+
+The MSI uses a stable `UpgradeCode` and enables same-version major upgrades. This is intentional for preview builds because semantic versions such as `0.1.0-preview.1` and `0.1.0-preview.2` are both converted to MSI product version `0.1.0`.
+
+User data is stored outside the install directory under `%LocalAppData%\EasyNaive` and must be preserved across uninstall and upgrade.
+
 ## Release Notes Template
 
 Use the following template when publishing a build:

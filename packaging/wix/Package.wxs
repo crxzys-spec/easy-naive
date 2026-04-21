@@ -22,7 +22,9 @@
     <Property Id="ARPCOMMENTS" Value="EasyNaive Windows client powered by sing-box and naive outbound." />
     <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Launch EasyNaive" />
 
-    <MajorUpgrade DowngradeErrorMessage="A newer version of EasyNaive is already installed." />
+    <MajorUpgrade
+      AllowSameVersionUpgrades="yes"
+      DowngradeErrorMessage="A newer version of EasyNaive is already installed." />
     <MediaTemplate EmbedCab="yes" />
 
     <SummaryInformation
