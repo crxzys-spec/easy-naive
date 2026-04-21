@@ -43,7 +43,12 @@ internal sealed class RuleSetUpdateService : IDisposable
 
     public Task<RuleSetUpdateSummary> EnsureAsync(CancellationToken cancellationToken = default)
     {
-        return UpdateInternalAsync(force: false, failIfUnavailable: false, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        _paths.EnsureDirectories();
+
+        return Task.FromResult(new RuleSetUpdateSummary(
+            CheckLocalRuleSet(_paths.CnDomainRuleSetPath, "CN domain rule-set"),
+            CheckLocalRuleSet(_paths.CnIpRuleSetPath, "CN IP rule-set")));
     }
 
     public Task<RuleSetUpdateSummary> UpdateAsync(CancellationToken cancellationToken = default)
@@ -80,6 +85,31 @@ internal sealed class RuleSetUpdateService : IDisposable
             cancellationToken);
 
         return new RuleSetUpdateSummary(domainResult, ipResult);
+    }
+
+    private static RuleSetItemUpdateResult CheckLocalRuleSet(string path, string displayName)
+    {
+        if (!File.Exists(path))
+        {
+            return new RuleSetItemUpdateResult(
+                displayName,
+                path,
+                Updated: false,
+                Available: false,
+                Warning: "Not found. Connect will continue without this rule-set; use Update Rules after connecting.");
+        }
+
+        if (IsStale(path))
+        {
+            return new RuleSetItemUpdateResult(
+                displayName,
+                path,
+                Updated: false,
+                Available: true,
+                Warning: "Stale. Use Update Rules to refresh.");
+        }
+
+        return new RuleSetItemUpdateResult(displayName, path, Updated: false, Available: true);
     }
 
     private async Task<RuleSetItemUpdateResult> UpdateRuleSetAsync(

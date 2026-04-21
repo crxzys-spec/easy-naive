@@ -7,6 +7,8 @@ namespace EasyNaive.SingBox.Process;
 
 public sealed class SingBoxProcessManager : IDisposable
 {
+    private static readonly TimeSpan StartupExitProbeDelay = TimeSpan.FromMilliseconds(300);
+
     private readonly object _syncRoot = new();
     private DiagnosticsProcess? _process;
     private StreamWriter? _logWriter;
@@ -131,7 +133,7 @@ public sealed class SingBoxProcessManager : IDisposable
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
 
-        await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
+        await Task.Delay(StartupExitProbeDelay, cancellationToken);
 
         if (!IsRunning)
         {

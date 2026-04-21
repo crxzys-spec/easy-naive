@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using System.Net.Sockets;
@@ -412,12 +413,21 @@ internal sealed class CoreController : IDisposable
         EnsureSelectedNode();
         _suppressProcessExitError = true;
         _appLogger.Info($"Connect requested. Capture={Settings.CaptureMode}, Route={Settings.RouteMode}, NodeMode={Settings.NodeMode}, SelectedNode={SelectedNode?.Name ?? "-"}.");
+        var connectStopwatch = Stopwatch.StartNew();
+        var stageStopwatch = Stopwatch.StartNew();
+
+        void LogConnectStage(string stageName)
+        {
+            _appLogger.Info($"Connect stage completed: {stageName} in {stageStopwatch.ElapsedMilliseconds} ms, total {connectStopwatch.ElapsedMilliseconds} ms.");
+            stageStopwatch.Restart();
+        }
 
         try
         {
             Persist();
             UpdateRuntimeState(state => state.StatusDetail = "Preparing runtime directories");
             _paths.EnsureDirectories();
+            LogConnectStage("prepare");
 
             if (Settings.RouteMode == RouteMode.Rule)
             {
@@ -427,6 +437,7 @@ internal sealed class CoreController : IDisposable
                 {
                     _appLogger.Info("Rule-set refresh completed with warnings: " + ruleSetSummary.ToDisplayText().Replace(Environment.NewLine, " | "));
                 }
+                LogConnectStage("rule-set check");
             }
 
             UpdateRuntimeState(state => state.StatusDetail = "Generating sing-box config");
@@ -434,6 +445,7 @@ internal sealed class CoreController : IDisposable
             File.WriteAllText(_paths.ActiveConfigPath, configJson);
 
             UpdateRuntimeState(state => state.CurrentProfileHash = ComputeSha256(configJson));
+            LogConnectStage("generate config");
 
             UpdateRuntimeState(state => state.StatusDetail = "Validating sing-box config");
             await _processManager.CheckConfigAsync(
@@ -441,6 +453,7 @@ internal sealed class CoreController : IDisposable
                 _paths.ActiveConfigPath,
                 _paths.SingBoxDirectory,
                 cancellationToken);
+            LogConnectStage("sing-box check");
 
             UpdateRuntimeState(state => state.StatusDetail = Settings.CaptureMode == CaptureMode.Tun ? "Starting elevated TUN helper" : "Starting sing-box");
             await _processManager.StartAsync(new SingBoxStartOptions
@@ -453,6 +466,7 @@ internal sealed class CoreController : IDisposable
                 ElevationExecutablePath = _paths.ElevationExecutablePath,
                 ElevationSessionPath = _paths.ElevationSessionPath
             }, cancellationToken);
+            LogConnectStage("start sing-box");
 
             UpdateRuntimeState(state =>
             {
@@ -461,8 +475,10 @@ internal sealed class CoreController : IDisposable
                 ApplyElevationSessionSummary(state);
             });
             await ApplyClashApiStateAsync(cancellationToken);
+            LogConnectStage("apply Clash API state");
             ApplySystemProxyState();
             await ValidateSystemProxyStateAsync(cancellationToken);
+            LogConnectStage("system proxy validation");
 
             UpdateRuntimeState(state =>
             {
@@ -475,11 +491,12 @@ internal sealed class CoreController : IDisposable
             });
             await RefreshCurrentRealNodeStateAsync(cancellationToken);
             RefreshCurrentLatency();
+            LogConnectStage("resolve active node");
             _appSessionState.RestoreConnectionOnLaunch = true;
             _appSessionState.LastRecoveryError = string.Empty;
             Persist();
             StartTrafficMonitor();
-            _appLogger.Info($"Connected. PID={_processManager.ProcessId?.ToString() ?? "-"}.");
+            _appLogger.Info($"Connected. PID={_processManager.ProcessId?.ToString() ?? "-"}. TotalConnectMs={connectStopwatch.ElapsedMilliseconds}.");
         }
         catch (Exception ex)
         {
@@ -508,6 +525,7 @@ internal sealed class CoreController : IDisposable
                 ApplyElevationSessionSummary(state);
             });
             _appLogger.Error("Connect failed.", ex);
+            _appLogger.Info($"Connect failed after {connectStopwatch.ElapsedMilliseconds} ms.");
             throw;
         }
         finally
