@@ -299,8 +299,7 @@ public sealed class SingBoxConfigBuilder
             ["type"] = "udp",
             ["tag"] = "dns-direct",
             ["server"] = "223.5.5.5",
-            ["server_port"] = 53,
-            ["detour"] = SingBoxTags.Direct
+            ["server_port"] = 53
         };
     }
 

@@ -77,7 +77,8 @@ public sealed class SingBoxConfigBuilderTests : IDisposable
             server?["tag"]?.GetValue<string>() == "dns-direct" &&
             server["type"]?.GetValue<string>() == "udp" &&
             server["server"]?.GetValue<string>() == "223.5.5.5" &&
-            server["server_port"]?.GetValue<int>() == 53);
+            server["server_port"]?.GetValue<int>() == 53 &&
+            server["detour"] is null);
         Assert.Contains(dnsServers, server =>
             server?["tag"]?.GetValue<string>() == "dns-proxy" &&
             server["type"]?.GetValue<string>() == "https" &&
@@ -115,7 +116,8 @@ public sealed class SingBoxConfigBuilderTests : IDisposable
             server?["tag"]?.GetValue<string>() == "dns-direct" &&
             server["type"]?.GetValue<string>() == "udp" &&
             server["server"]?.GetValue<string>() == "223.5.5.5" &&
-            server["address"] is null);
+            server["address"] is null &&
+            server["detour"] is null);
         Assert.DoesNotContain(dnsServers, server => server?["address"] is not null);
         Assert.Equal("ipv4_only", root["dns"]!["strategy"]!.GetValue<string>());
     }
