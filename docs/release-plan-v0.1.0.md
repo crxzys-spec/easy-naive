@@ -38,7 +38,8 @@ Primary goals:
 ## Known Limits
 
 - `naive` under TUN is compatible TUN, not a full native-UDP VPN.
-- Windows system proxy restoration still needs a snapshot/restore improvement.
+- Windows system proxy restoration uses a persisted snapshot, but still needs
+  manual validation with other proxy clients installed.
 - The current release bundles `sing-box.exe` and `libcronet.dll`; third-party
   notices and redistribution obligations must be reviewed before a public
   final release.
@@ -53,9 +54,9 @@ These must be resolved before publishing a public GitHub Release:
       distribution model.
 - [ ] Finalize `THIRD_PARTY_NOTICES.md` for `sing-box`, `libcronet.dll`, and
       direct NuGet dependencies.
-- [ ] Add system proxy snapshot/restore so EasyNaive does not overwrite another
-      proxy client's settings on exit.
 - [ ] Run the manual smoke test checklist on a clean Windows machine.
+- [ ] Validate system proxy snapshot/restore with an existing third-party proxy
+      configuration.
 
 ## Build Commands
 
@@ -93,6 +94,7 @@ Note: WiX MSI package versions use three numeric parts, so the MSI filename uses
 - [ ] Add or import one naive node.
 - [ ] Proxy mode connects successfully.
 - [ ] Windows system proxy points to the configured mixed port while connected.
+- [ ] Existing Windows system proxy settings are restored after disconnect.
 - [ ] Rule/global/direct route switching works without manual restart.
 - [ ] Manual node selection updates current node display.
 - [ ] Auto mode displays the real selected outbound node.

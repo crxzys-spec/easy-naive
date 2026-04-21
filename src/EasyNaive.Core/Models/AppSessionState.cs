@@ -17,4 +17,6 @@ public sealed class AppSessionState
     public DateTimeOffset? LastRecoveryAttemptTime { get; set; }
 
     public string LastRecoveryError { get; set; } = string.Empty;
+
+    public SystemProxySnapshot? SystemProxySnapshot { get; set; }
 }

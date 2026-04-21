@@ -65,6 +65,35 @@ public sealed class JsonFileStoreTests : IDisposable
         Assert.Equal("persisted-secret", loaded.ClashApiSecret);
     }
 
+    [Fact]
+    public void SaveAndLoad_AppSessionState_PreservesSystemProxySnapshot()
+    {
+        var path = Path.Combine(_tempDirectory, "app-state.json");
+        var store = new JsonFileStore<AppSessionState>(path);
+        var capturedAt = new DateTimeOffset(2026, 4, 21, 12, 30, 0, TimeSpan.Zero);
+
+        store.Save(new AppSessionState
+        {
+            SystemProxySnapshot = new SystemProxySnapshot
+            {
+                ProxyEnabled = true,
+                ProxyServerExists = true,
+                ProxyServer = "http=127.0.0.1:8888",
+                ManagedPort = 2080,
+                CapturedAt = capturedAt
+            }
+        });
+
+        var loaded = store.LoadOrCreate(() => new AppSessionState());
+
+        Assert.NotNull(loaded.SystemProxySnapshot);
+        Assert.True(loaded.SystemProxySnapshot.ProxyEnabled);
+        Assert.True(loaded.SystemProxySnapshot.ProxyServerExists);
+        Assert.Equal("http=127.0.0.1:8888", loaded.SystemProxySnapshot.ProxyServer);
+        Assert.Equal(2080, loaded.SystemProxySnapshot.ManagedPort);
+        Assert.Equal(capturedAt, loaded.SystemProxySnapshot.CapturedAt);
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_tempDirectory))

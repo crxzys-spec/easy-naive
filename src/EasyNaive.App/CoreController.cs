@@ -109,7 +109,7 @@ internal sealed class CoreController : IDisposable
         {
             // Keep the application available even if startup registration is unavailable.
         }
-        TryClearManagedSystemProxy();
+        RecoverSystemProxyOnLaunch();
         _appLogger.Info("EasyNaive controller initialized.");
     }
 
@@ -496,7 +496,7 @@ internal sealed class CoreController : IDisposable
                 // Startup already failed. Best effort cleanup only.
             }
 
-            TryClearManagedSystemProxy();
+            TryRestoreManagedSystemProxy();
             UpdateRuntimeState(state =>
             {
                 state.CoreStatus = CoreStatus.Error;
@@ -532,7 +532,7 @@ internal sealed class CoreController : IDisposable
         try
         {
             await _processManager.StopAsync(cancellationToken);
-            TryClearManagedSystemProxy();
+            TryRestoreManagedSystemProxy();
             _appSessionState.RestoreConnectionOnLaunch = _preserveRestoreConnectionOnNextDisconnect;
             _appSessionState.LastExitReason = _preserveRestoreConnectionOnNextDisconnect
                 ? SessionExitReason.ApplicationExitConnected
@@ -556,7 +556,7 @@ internal sealed class CoreController : IDisposable
             _preserveRestoreConnectionOnNextDisconnect = false;
             if (!_processManager.IsRunning)
             {
-                TryClearManagedSystemProxy();
+                TryRestoreManagedSystemProxy();
             }
             UpdateRuntimeState(state =>
             {
@@ -645,7 +645,7 @@ internal sealed class CoreController : IDisposable
         Settings.CaptureMode = captureMode;
         if (captureMode != CaptureMode.Proxy)
         {
-            TryClearManagedSystemProxy();
+            TryRestoreManagedSystemProxy();
         }
         return PersistAndRestartIfRunningAsync(cancellationToken);
     }
@@ -1091,7 +1091,7 @@ internal sealed class CoreController : IDisposable
                 await _processManager.StopAsync(cancellationToken);
             }
 
-            TryClearManagedSystemProxy();
+            TryRestoreManagedSystemProxy();
             AppSessionStateCoordinator.MarkDisposed(_appSessionState, _pendingApplicationExitReason, DateTimeOffset.Now);
             Persist();
         }
@@ -1124,7 +1124,7 @@ internal sealed class CoreController : IDisposable
                 // Best effort shutdown only.
             }
 
-            TryClearManagedSystemProxy();
+            TryRestoreManagedSystemProxy();
             AppSessionStateCoordinator.MarkDisposed(_appSessionState, _pendingApplicationExitReason, DateTimeOffset.Now);
             Persist();
             _shutdownCompleted = true;
@@ -1671,11 +1671,12 @@ internal sealed class CoreController : IDisposable
     {
         if (Settings.CaptureMode == CaptureMode.Proxy)
         {
+            CaptureSystemProxySnapshotIfNeeded();
             _systemProxyManager.EnableLoopbackProxy(Settings.ProxyMixedPort);
             return;
         }
 
-        _systemProxyManager.DisableManagedProxy(Settings.ProxyMixedPort);
+        TryRestoreManagedSystemProxy();
     }
 
     private async Task ValidateSystemProxyStateAsync(CancellationToken cancellationToken)
@@ -1704,16 +1705,91 @@ internal sealed class CoreController : IDisposable
             $"Windows system proxy is still enabled ({conflictingProxyServer}). Disable the other proxy client before using TUN mode.");
     }
 
-    private void TryClearManagedSystemProxy()
+    private void RecoverSystemProxyOnLaunch()
     {
+        if (TryRestoreManagedSystemProxy())
+        {
+            return;
+        }
+
         try
         {
-            _systemProxyManager.DisableManagedProxy(Settings.ProxyMixedPort);
+            if (_systemProxyManager.DisableManagedProxyIfCurrent(Settings.ProxyMixedPort))
+            {
+                _appLogger.Info($"Cleared stale EasyNaive system proxy at 127.0.0.1:{Settings.ProxyMixedPort}.");
+            }
         }
         catch (Exception ex)
         {
-            _appLogger.Error("Failed to clear managed system proxy.", ex);
+            _appLogger.Error("Failed to recover Windows system proxy on launch.", ex);
         }
+    }
+
+    private void CaptureSystemProxySnapshotIfNeeded()
+    {
+        if (_appSessionState.SystemProxySnapshot is not null)
+        {
+            return;
+        }
+
+        if (_systemProxyManager.IsManagedProxyEnabled(Settings.ProxyMixedPort))
+        {
+            return;
+        }
+
+        _appSessionState.SystemProxySnapshot = new SystemProxySnapshot
+        {
+            ProxyEnabled = _systemProxyManager.IsProxyEnabled(),
+            ProxyServerExists = _systemProxyManager.ProxyServerExists(),
+            ProxyServer = _systemProxyManager.GetProxyServer() ?? string.Empty,
+            ManagedPort = Settings.ProxyMixedPort,
+            CapturedAt = DateTimeOffset.Now
+        };
+        Persist();
+        _appLogger.Info("Captured Windows system proxy snapshot before enabling EasyNaive proxy.");
+    }
+
+    private bool TryRestoreManagedSystemProxy()
+    {
+        try
+        {
+            var snapshot = _appSessionState.SystemProxySnapshot;
+            if (snapshot is not null)
+            {
+                var currentIsManaged =
+                    (snapshot.ManagedPort > 0 && _systemProxyManager.IsManagedProxyEnabled(snapshot.ManagedPort)) ||
+                    _systemProxyManager.IsManagedProxyEnabled(Settings.ProxyMixedPort);
+
+                if (currentIsManaged)
+                {
+                    _systemProxyManager.RestoreProxyState(
+                        snapshot.ProxyEnabled,
+                        snapshot.ProxyServerExists,
+                        snapshot.ProxyServer);
+                    _appLogger.Info("Restored Windows system proxy from EasyNaive snapshot.");
+                }
+                else
+                {
+                    _appLogger.Info("Skipped Windows system proxy restore because the current proxy is no longer managed by EasyNaive.");
+                }
+
+                _appSessionState.SystemProxySnapshot = null;
+                Persist();
+                return currentIsManaged;
+            }
+
+            if (_systemProxyManager.DisableManagedProxyIfCurrent(Settings.ProxyMixedPort))
+            {
+                _appLogger.Info($"Cleared EasyNaive system proxy at 127.0.0.1:{Settings.ProxyMixedPort}.");
+                return true;
+            }
+        }
+        catch (Exception ex)
+        {
+            _appLogger.Error("Failed to restore Windows system proxy.", ex);
+        }
+
+        return false;
     }
 
     private void StartTrafficMonitor()

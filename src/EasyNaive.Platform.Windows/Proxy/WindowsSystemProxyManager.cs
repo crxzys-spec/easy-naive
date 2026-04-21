@@ -29,6 +29,35 @@ public sealed class WindowsSystemProxyManager
         NotifySystem();
     }
 
+    public bool DisableManagedProxyIfCurrent(int port)
+    {
+        if (!IsManagedProxyEnabled(port))
+        {
+            return false;
+        }
+
+        DisableManagedProxy(port);
+        return true;
+    }
+
+    public void RestoreProxyState(bool proxyEnabled, bool proxyServerExists, string proxyServer)
+    {
+        using var key = Registry.CurrentUser.CreateSubKey(InternetSettingsPath, writable: true)
+            ?? throw new InvalidOperationException("Unable to open Windows internet settings registry key.");
+
+        key.SetValue("ProxyEnable", proxyEnabled ? 1 : 0, RegistryValueKind.DWord);
+        if (proxyServerExists)
+        {
+            key.SetValue("ProxyServer", proxyServer, RegistryValueKind.String);
+        }
+        else
+        {
+            key.DeleteValue("ProxyServer", throwOnMissingValue: false);
+        }
+
+        NotifySystem();
+    }
+
     public bool IsManagedProxyEnabled(int port)
     {
         var proxyEnabled = IsProxyEnabled();
@@ -46,6 +75,12 @@ public sealed class WindowsSystemProxyManager
     {
         using var key = Registry.CurrentUser.OpenSubKey(InternetSettingsPath, writable: false);
         return key?.GetValue("ProxyServer") as string;
+    }
+
+    public bool ProxyServerExists()
+    {
+        using var key = Registry.CurrentUser.OpenSubKey(InternetSettingsPath, writable: false);
+        return key?.GetValueNames().Contains("ProxyServer", StringComparer.OrdinalIgnoreCase) == true;
     }
 
     private static bool IsManagedProxyValue(string? proxyServer, int port)
