@@ -71,6 +71,16 @@ public sealed class SingBoxConfigBuilderTests : IDisposable
         Assert.Contains(routeRules, rule => rule?["action"]?.GetValue<string>() == "hijack-dns");
         Assert.Equal("ipv4_only", root["dns"]!["strategy"]!.GetValue<string>());
         Assert.Equal("dns-proxy", root["dns"]!["final"]!.GetValue<string>());
+
+        var dnsServers = root["dns"]!["servers"]!.AsArray();
+        Assert.Contains(dnsServers, server =>
+            server?["tag"]?.GetValue<string>() == "dns-direct" &&
+            server["type"]?.GetValue<string>() == "udp" &&
+            server["server"]?.GetValue<string>() == "223.5.5.5");
+        Assert.Contains(dnsServers, server =>
+            server?["tag"]?.GetValue<string>() == "dns-proxy" &&
+            server["type"]?.GetValue<string>() == "https" &&
+            server["server"]?.GetValue<string>() == "1.1.1.1");
     }
 
     [Fact]
@@ -98,6 +108,13 @@ public sealed class SingBoxConfigBuilderTests : IDisposable
         Assert.Contains(routeRules, rule => RuleContainsRuleSet(rule, "cn-domain"));
         Assert.Contains(routeRules, rule => RuleContainsRuleSet(rule, "cn-ip"));
         Assert.Equal("dns-direct", root["dns"]!["final"]!.GetValue<string>());
+
+        var dnsServers = root["dns"]!["servers"]!.AsArray();
+        Assert.Contains(dnsServers, server =>
+            server?["tag"]?.GetValue<string>() == "dns-direct" &&
+            server["type"]?.GetValue<string>() == "local" &&
+            server["address"] is null);
+        Assert.DoesNotContain(dnsServers, server => server?["address"] is not null);
     }
 
     public void Dispose()

@@ -248,7 +248,6 @@ public sealed class SingBoxConfigBuilder
 
     private static JsonObject BuildDns(AppSettings settings, SingBoxBuildContext context)
     {
-        var directDnsAddress = settings.CaptureMode == CaptureMode.Tun ? "223.5.5.5" : "local";
         var rules = new JsonArray
         {
             new JsonObject
@@ -279,18 +278,8 @@ public sealed class SingBoxConfigBuilder
         {
             ["servers"] = new JsonArray
             {
-                new JsonObject
-                {
-                    ["tag"] = "dns-direct",
-                    ["address"] = directDnsAddress,
-                    ["detour"] = SingBoxTags.Direct
-                },
-                new JsonObject
-                {
-                    ["tag"] = "dns-proxy",
-                    ["address"] = "https://1.1.1.1/dns-query",
-                    ["detour"] = SingBoxTags.ProxySelector
-                }
+                BuildDirectDnsServer(settings),
+                BuildProxyDnsServer()
             },
             ["rules"] = rules,
             ["final"] = settings.RouteMode == RouteMode.Direct ? "dns-direct" : "dns-proxy",
@@ -303,6 +292,38 @@ public sealed class SingBoxConfigBuilder
         }
 
         return dns;
+    }
+
+    private static JsonObject BuildDirectDnsServer(AppSettings settings)
+    {
+        if (settings.CaptureMode == CaptureMode.Tun)
+        {
+            return new JsonObject
+            {
+                ["type"] = "udp",
+                ["tag"] = "dns-direct",
+                ["server"] = "223.5.5.5",
+                ["detour"] = SingBoxTags.Direct
+            };
+        }
+
+        return new JsonObject
+        {
+            ["type"] = "local",
+            ["tag"] = "dns-direct",
+            ["detour"] = SingBoxTags.Direct
+        };
+    }
+
+    private static JsonObject BuildProxyDnsServer()
+    {
+        return new JsonObject
+        {
+            ["type"] = "https",
+            ["tag"] = "dns-proxy",
+            ["server"] = "1.1.1.1",
+            ["detour"] = SingBoxTags.ProxySelector
+        };
     }
 
     private static JsonObject BuildExperimental(AppSettings settings, SingBoxBuildContext context)
