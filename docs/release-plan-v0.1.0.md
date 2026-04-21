@@ -56,6 +56,8 @@ These must be resolved before publishing a public GitHub Release:
 - [ ] Validate system proxy snapshot/restore with an existing third-party proxy
       configuration.
 
+Use [smoke-test.md](smoke-test.md) for the detailed manual checklist.
+
 ## Build Commands
 
 Run tests:
@@ -86,7 +88,9 @@ artifacts/installer/Release/win-x64/EasyNaive-0.1.0-x64.msi
 Note: WiX MSI package versions use three numeric parts, so the MSI filename uses
 `0.1.0` even when the product build version is `0.1.0-preview.1`.
 
-## Manual Smoke Test
+## Manual Smoke Test Summary
+
+Detailed checklist: [smoke-test.md](smoke-test.md).
 
 - [ ] Fresh app launch shows tray icon and main window.
 - [ ] Add or import one naive node.
