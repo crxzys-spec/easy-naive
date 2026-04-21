@@ -5,8 +5,9 @@ contributions.
 
 ## Required Before Public Release
 
-- [ ] Choose the final project license and replace `LICENSE`.
-- [ ] Confirm the chosen license is compatible with the distribution strategy.
+- [x] Choose the final project license and replace `LICENSE`.
+- [x] Confirm the chosen license is compatible with the GPL-based distribution
+      strategy.
 - [ ] Review `sing-box` GPL obligations for bundled binary distribution.
 - [ ] Confirm required notices for `libcronet.dll`.
 - [ ] Decide whether bundled third-party binaries remain in Git.

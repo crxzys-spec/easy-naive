@@ -5,8 +5,8 @@
 Recommended first release type: `v0.1.0-preview.1`.
 
 Reason: the app is already locally usable, but the repository is not ready for a
-final public open-source release because the project license is still `TBD` and
-bundled third-party binary redistribution needs a final review.
+final public release because bundled third-party binary redistribution still
+needs a final review.
 
 ## Release Goal
 
@@ -43,13 +43,11 @@ Primary goals:
 - The current release bundles `sing-box.exe` and `libcronet.dll`; third-party
   notices and redistribution obligations must be reviewed before a public
   final release.
-- The project `LICENSE` file is still an open-source readiness placeholder.
 
 ## Release Blockers
 
 These must be resolved before publishing a public GitHub Release:
 
-- [ ] Choose the final project license and replace `LICENSE`.
 - [ ] Confirm whether bundling `sing-box.exe` is acceptable for the selected
       distribution model.
 - [ ] Finalize `THIRD_PARTY_NOTICES.md` for `sing-box`, `libcronet.dll`, and
@@ -144,5 +142,4 @@ Then create a GitHub Release for `v0.1.0-preview.1` and attach:
 
 - Compatible TUN mode does not provide full native UDP VPN behavior for
   `naive`.
-- Public source license and bundled binary redistribution policy are still
-  pending final approval.
+- Bundled binary redistribution policy is still pending final approval.

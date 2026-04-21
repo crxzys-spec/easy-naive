@@ -1,7 +1,7 @@
 # Contributing
 
-EasyNaive is not ready for broad public contribution until the final project
-license and third-party distribution policy are confirmed.
+EasyNaive is licensed under GNU GPL v3.0 or later. Public contribution is still
+limited until the third-party binary distribution policy is finalized.
 
 ## Development Setup
 

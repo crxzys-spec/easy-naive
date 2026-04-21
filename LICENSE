@@ -1,16 +1,15 @@
-License TBD
+GNU General Public License v3.0 or later
+
+SPDX-License-Identifier: GPL-3.0-or-later
 
 Copyright (c) 2026 EasyNaive contributors.
 
-The EasyNaive project license has not been finalized yet.
+EasyNaive is licensed under the GNU General Public License version 3, or any
+later version published by the Free Software Foundation.
 
-Until this file is replaced with a final approved open-source license, this
-repository is not licensed for public redistribution, sublicensing, or reuse
-outside the project owner's authorization.
+The canonical GPLv3 license text is available at:
 
-Before public release:
+https://www.gnu.org/licenses/gpl-3.0.html
 
-1. Choose the final project license.
-2. Confirm compatibility with bundled and referenced third-party components.
-3. Replace this file with the full final license text.
-4. Update README.md and THIRD_PARTY_NOTICES.md accordingly.
+Release packages that bundle third-party binaries must also include and comply
+with the relevant third-party license notices. See `THIRD_PARTY_NOTICES.md`.

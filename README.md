@@ -7,8 +7,8 @@ proxy/TUN capture modes, subscriptions, diagnostics, and packaging.
 ## Status
 
 This project is pre-release. The codebase is functional enough for local
-testing, but the public open-source release still needs a final license choice
-and a third-party distribution review.
+testing, but the public release still needs a third-party binary distribution
+review.
 
 ## Features
 
@@ -28,8 +28,6 @@ and a third-party distribution review.
 - The project currently bundles `sing-box.exe` and `libcronet.dll` for local
   packaging. Their upstream licenses and redistribution requirements must be
   reviewed before public release.
-- The project license is not final yet. See [LICENSE](LICENSE) and
-  [OPEN_SOURCE_CHECKLIST.md](OPEN_SOURCE_CHECKLIST.md).
 
 ## Repository Layout
 
@@ -115,6 +113,8 @@ Report security issues privately. See [SECURITY.md](SECURITY.md).
 
 ## License
 
-The EasyNaive project license has not been finalized. Do not publish this
-repository as an open-source release until [LICENSE](LICENSE) is replaced with a
-final approved license and third-party notices are reviewed.
+EasyNaive is licensed under GNU GPL v3.0 or later. See [LICENSE](LICENSE).
+
+Bundled third-party binaries have their own license requirements. See
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) before publishing release
+artifacts.

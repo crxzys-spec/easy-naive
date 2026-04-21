@@ -4,7 +4,7 @@ This document tracks third-party components that are used, bundled, or reference
 by EasyNaive. It is a release-readiness document, not legal advice.
 
 Before a public release, verify every entry against the exact shipped versions
-and replace this document with finalized notices if required.
+and expand this document with finalized notices if required.
 
 ## Bundled Runtime Components
 
@@ -69,4 +69,4 @@ Known direct package references include:
 - Include upstream license files in the release package where required.
 - Generate a NuGet dependency license report.
 - Decide whether `sing-box` is bundled or downloaded separately.
-- Confirm the final EasyNaive license is compatible with the distribution model.
+- Confirm release packages include the required GPL and Chromium/Cronet notices.
