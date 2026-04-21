@@ -54,6 +54,7 @@
     <Feature Id="MainFeature" Title="EasyNaive" Level="1">
       <ComponentGroupRef Id="RootFiles" />
       <ComponentGroupRef Id="AssetsFiles" />
+      <ComponentGroupRef Id="DocumentationFiles" />
       <ComponentGroupRef Id="SingBoxFiles" />
       <ComponentGroupRef Id="MachineRegistration" />
       <ComponentGroupRef Id="StartMenuCleanup" />
@@ -65,6 +66,7 @@
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="INSTALLFOLDER" Name="EasyNaive">
         <Directory Id="ASSETSFOLDER" Name="Assets" />
+        <Directory Id="DOCSFOLDER" Name="docs" />
         <Directory Id="SINGBOXFOLDER" Name="sing-box" />
       </Directory>
     </StandardDirectory>
@@ -130,6 +132,23 @@
       </Component>
       <Component Id="cmpTrayStoppedIcon">
         <File Source="$(var.PackageSourceRoot)\Assets\TrayStopped.ico" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+
+  <Fragment>
+    <ComponentGroup Id="DocumentationFiles" Directory="DOCSFOLDER">
+      <Component Id="cmpProjectLicense">
+        <File Source="$(var.PackageSourceRoot)\docs\LICENSE" KeyPath="yes" />
+      </Component>
+      <Component Id="cmpProjectReadme">
+        <File Source="$(var.PackageSourceRoot)\docs\README.md" KeyPath="yes" />
+      </Component>
+      <Component Id="cmpProjectSecurity">
+        <File Source="$(var.PackageSourceRoot)\docs\SECURITY.md" KeyPath="yes" />
+      </Component>
+      <Component Id="cmpThirdPartyNotices">
+        <File Source="$(var.PackageSourceRoot)\docs\THIRD_PARTY_NOTICES.md" KeyPath="yes" />
       </Component>
     </ComponentGroup>
   </Fragment>

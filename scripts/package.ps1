@@ -26,6 +26,7 @@ $appPublish = Join-Path $publishRoot 'EasyNaive.App'
 $elevationPublish = Join-Path $publishRoot 'EasyNaive.Elevation'
 $singBoxSource = Join-Path $repoRoot 'bin\sing-box'
 $singBoxTarget = Join-Path $layoutRoot 'sing-box'
+$docsTarget = Join-Path $layoutRoot 'docs'
 
 function Assert-RequiredFile {
     param([string]$Path)
@@ -37,6 +38,7 @@ function Assert-RequiredFile {
 
 New-Item -ItemType Directory -Path $layoutRoot -Force | Out-Null
 New-Item -ItemType Directory -Path $singBoxTarget -Force | Out-Null
+New-Item -ItemType Directory -Path $docsTarget -Force | Out-Null
 
 Copy-Item -Path (Join-Path $appPublish '*') -Destination $layoutRoot -Recurse -Force
 Copy-Item -Path (Join-Path $elevationPublish '*') -Destination $layoutRoot -Recurse -Force
@@ -56,6 +58,11 @@ if (Test-Path $assetsSource)
     Copy-Item -Path $assetsSource -Destination (Join-Path $layoutRoot 'assets') -Recurse -Force
 }
 
+foreach ($fileName in 'LICENSE', 'README.md', 'SECURITY.md', 'THIRD_PARTY_NOTICES.md')
+{
+    Copy-Item -Path (Join-Path $repoRoot $fileName) -Destination (Join-Path $docsTarget $fileName) -Force
+}
+
 $requiredFiles = @(
     'EasyNaiveTray.exe',
     'EasyNaiveTray.dll',
@@ -72,6 +79,10 @@ $requiredFiles = @(
     'Assets\TrayConnected.ico',
     'Assets\TrayError.ico',
     'Assets\TrayStopped.ico',
+    'docs\LICENSE',
+    'docs\README.md',
+    'docs\SECURITY.md',
+    'docs\THIRD_PARTY_NOTICES.md',
     'sing-box\sing-box.exe',
     'sing-box\libcronet.dll'
 )
