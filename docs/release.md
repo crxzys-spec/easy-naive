@@ -38,6 +38,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\build-installer.ps1 -Version 
 
 The MSI uses a stable `UpgradeCode` and enables same-version major upgrades. This is intentional for preview builds because semantic versions such as `0.1.0-preview.1` and `0.1.0-preview.2` are both converted to MSI product version `0.1.0`.
 
+ICE61 is suppressed for the installer project because same-version preview upgrades intentionally remove the installed product with the same MSI product version.
+
 User data is stored outside the install directory under `%LocalAppData%\EasyNaive` and must be preserved across uninstall and upgrade.
 
 ## Release Notes Template

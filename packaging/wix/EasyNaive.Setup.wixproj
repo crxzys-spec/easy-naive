@@ -6,6 +6,7 @@
     <PackageSourceRoot Condition="'$(PackageSourceRoot)' == ''">$(MSBuildThisFileDirectory)..\..\artifacts\package\Release\win-x64\latest</PackageSourceRoot>
     <OutputName>EasyNaive-$(InstallerProductVersion)-$(Platform)</OutputName>
     <DefineConstants>PackageSourceRoot=$(PackageSourceRoot);InstallerProductVersion=$(InstallerProductVersion)</DefineConstants>
+    <SuppressIces>ICE61</SuppressIces>
   </PropertyGroup>
 
   <ItemGroup>
