@@ -19,6 +19,7 @@ review.
 - sing-box config generation and `sing-box check` validation.
 - Clash API based hot switching for route and selector state.
 - Subscription import, text import, and clipboard import.
+- Node sharing through importable `naive://` links, clipboard copy, and text export.
 - App logs, sing-box logs, self-checks, traffic display, and tray status icons.
 - Portable package and WiX MSI build scripts.
 
@@ -106,6 +107,12 @@ User data is stored under:
 ```
 
 Package upgrades and installer upgrades must preserve this directory.
+
+## Node Sharing
+
+Select one or more nodes in the Nodes tab, then use `Copy Share Link` or
+`Export Nodes`. The output is one `naive://` link per line and can be imported
+on another PC with `Import Clipboard` or `Import Text`.
 
 ## Security
 

@@ -202,10 +202,10 @@ internal sealed class SubscriptionImportService : IDisposable
             return null;
         }
 
-        var userInfo = Uri.UnescapeDataString(uri.UserInfo ?? string.Empty);
-        var separatorIndex = userInfo.IndexOf(':');
-        var username = separatorIndex >= 0 ? userInfo[..separatorIndex] : userInfo;
-        var password = separatorIndex >= 0 ? userInfo[(separatorIndex + 1)..] : string.Empty;
+        var rawUserInfo = uri.UserInfo ?? string.Empty;
+        var separatorIndex = rawUserInfo.IndexOf(':');
+        var username = separatorIndex >= 0 ? rawUserInfo[..separatorIndex] : rawUserInfo;
+        var password = separatorIndex >= 0 ? rawUserInfo[(separatorIndex + 1)..] : string.Empty;
         var query = ParseQuery(uri.Query);
         var server = uri.Host;
         var port = uri.IsDefaultPort ? 443 : uri.Port;
@@ -222,8 +222,8 @@ internal sealed class SubscriptionImportService : IDisposable
                 : subscription.Name,
             Server = server,
             ServerPort = port,
-            Username = username,
-            Password = password,
+            Username = Uri.UnescapeDataString(username),
+            Password = Uri.UnescapeDataString(password),
             TlsServerName = FirstNonEmpty(query, "sni", "server_name", "peer") ?? server,
             UseQuic = ParseBoolean(FirstNonEmpty(query, "quic")),
             UseUdpOverTcp = ParseBoolean(FirstNonEmpty(query, "udp_over_tcp", "uot")),

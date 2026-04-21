@@ -1,6 +1,7 @@
 using System.Drawing;
 using System.Windows.Forms;
 using EasyNaive.App.Presentation;
+using EasyNaive.App.Sharing;
 using EasyNaive.Core.Enums;
 using EasyNaive.Core.Models;
 
@@ -37,6 +38,8 @@ internal sealed class MainForm : Form
     private readonly Button _useNodeButton;
     private readonly Button _testNodeButton;
     private readonly Button _testAllButton;
+    private readonly Button _copyShareLinkButton;
+    private readonly Button _exportNodesButton;
     private readonly DataGridView _nodesGrid;
     private readonly TextBox _nodeSearchTextBox;
     private readonly ComboBox _groupFilterComboBox;
@@ -292,6 +295,8 @@ internal sealed class MainForm : Form
         _useNodeButton = CreateActionButton("Use as Manual", UseSelectedNodeAsync);
         _testNodeButton = CreateActionButton("Test Selected", TestSelectedNodeAsync);
         _testAllButton = CreateActionButton("Test All", TestAllNodesAsync);
+        _copyShareLinkButton = CreateActionButton("Copy Share Link", CopySelectedNodeShareLinksAsync);
+        _exportNodesButton = CreateActionButton("Export Nodes", ExportSelectedNodesAsync);
 
         nodeActionPanel.Controls.Add(_addNodeButton);
         nodeActionPanel.Controls.Add(_editNodeButton);
@@ -299,6 +304,8 @@ internal sealed class MainForm : Form
         nodeActionPanel.Controls.Add(_useNodeButton);
         nodeActionPanel.Controls.Add(_testNodeButton);
         nodeActionPanel.Controls.Add(_testAllButton);
+        nodeActionPanel.Controls.Add(_copyShareLinkButton);
+        nodeActionPanel.Controls.Add(_exportNodesButton);
         nodeActionPanel.Controls.Add(_subscriptionsButton);
         nodeActionPanel.Controls.Add(_importTextButton);
         nodeActionPanel.Controls.Add(_importClipboardButton);
@@ -506,7 +513,7 @@ internal sealed class MainForm : Form
             BackgroundColor = SystemColors.Window,
             ColumnHeadersHeight = 34,
             ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing,
-            MultiSelect = false,
+            MultiSelect = true,
             ReadOnly = true,
             RowHeadersVisible = false,
             SelectionMode = DataGridViewSelectionMode.FullRowSelect
@@ -791,6 +798,65 @@ internal sealed class MainForm : Form
         await ExecuteAsync(_controller.TestAllNodeLatenciesAsync);
     }
 
+    private Task CopySelectedNodeShareLinksAsync()
+    {
+        try
+        {
+            var selectedNodes = GetSelectedGridNodes();
+            if (selectedNodes.Count == 0)
+            {
+                MessageBox.Show(this, "Select at least one node to share.", "EasyNaive", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return Task.CompletedTask;
+            }
+
+            Clipboard.SetText(NodeShareFormatter.FormatNodes(selectedNodes));
+            MessageBox.Show(this, $"Copied {selectedNodes.Count} node share link(s).", "EasyNaive", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, "EasyNaive", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private Task ExportSelectedNodesAsync()
+    {
+        try
+        {
+            var selectedNodes = GetSelectedGridNodes();
+            if (selectedNodes.Count == 0)
+            {
+                MessageBox.Show(this, "Select at least one node to export.", "EasyNaive", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return Task.CompletedTask;
+            }
+
+            using var dialog = new SaveFileDialog
+            {
+                AddExtension = true,
+                DefaultExt = "txt",
+                FileName = $"EasyNaive-nodes-{DateTime.Now:yyyyMMdd-HHmmss}.txt",
+                Filter = "Naive node list (*.txt)|*.txt|All files (*.*)|*.*",
+                OverwritePrompt = true,
+                Title = "Export EasyNaive Nodes"
+            };
+
+            if (dialog.ShowDialog(this) != DialogResult.OK)
+            {
+                return Task.CompletedTask;
+            }
+
+            File.WriteAllText(dialog.FileName, NodeShareFormatter.FormatNodes(selectedNodes));
+            MessageBox.Show(this, $"Exported {selectedNodes.Count} node(s).", "EasyNaive", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, "EasyNaive", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+
+        return Task.CompletedTask;
+    }
+
     private Task OpenSubscriptionsAsync()
     {
         using var dialog = new SubscriptionManagerForm(_controller);
@@ -921,12 +987,28 @@ internal sealed class MainForm : Form
 
     private string? GetSelectedGridNodeId()
     {
-        if (_nodesGrid.SelectedRows.Count == 0)
-        {
-            return null;
-        }
+        return GetSelectedGridNodeIds().FirstOrDefault();
+    }
 
-        return _nodesGrid.SelectedRows[0].Cells["Id"].Value?.ToString();
+    private List<string> GetSelectedGridNodeIds()
+    {
+        return _nodesGrid.SelectedRows
+            .Cast<DataGridViewRow>()
+            .OrderBy(row => row.Index)
+            .Select(row => row.Cells["Id"].Value?.ToString())
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Distinct(StringComparer.Ordinal)
+            .Select(id => id!)
+            .ToList();
+    }
+
+    private List<NodeProfile> GetSelectedGridNodes()
+    {
+        var selectedNodeIds = GetSelectedGridNodeIds();
+        return _controller.Nodes
+            .Where(node => selectedNodeIds.Contains(node.Id, StringComparer.Ordinal))
+            .OrderBy(node => selectedNodeIds.IndexOf(node.Id))
+            .ToList();
     }
 
     private void SelectGridRowByNodeId(string nodeId)
@@ -951,6 +1033,8 @@ internal sealed class MainForm : Form
         _deleteNodeButton.Enabled = hasSelection;
         _useNodeButton.Enabled = canUseSelection;
         _testNodeButton.Enabled = canUseSelection;
+        _copyShareLinkButton.Enabled = hasSelection;
+        _exportNodesButton.Enabled = hasSelection;
     }
 
     private void ToggleActions(bool enabled)
@@ -972,6 +1056,8 @@ internal sealed class MainForm : Form
         _routeModeComboBox.Enabled = enabled;
         _nodeModeComboBox.Enabled = enabled;
         _addNodeButton.Enabled = enabled;
+        _copyShareLinkButton.Enabled = enabled;
+        _exportNodesButton.Enabled = enabled;
         _testAllButton.Enabled = enabled;
 
         SyncNodeActions();
@@ -983,6 +1069,8 @@ internal sealed class MainForm : Form
             _useNodeButton.Enabled = false;
             _testNodeButton.Enabled = false;
             _testAllButton.Enabled = false;
+            _copyShareLinkButton.Enabled = false;
+            _exportNodesButton.Enabled = false;
             return;
         }
 
