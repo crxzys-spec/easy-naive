@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <AssemblyName>EasyNaiveTray</AssemblyName>
+    <RootNamespace>EasyNaive.App</RootNamespace>
+    <ApplicationIcon>Assets\App.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\EasyNaive.Core\EasyNaive.Core.csproj" />
+    <ProjectReference Include="..\EasyNaive.Platform.Windows\EasyNaive.Platform.Windows.csproj" />
+    <ProjectReference Include="..\EasyNaive.SingBox\EasyNaive.SingBox.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>EasyNaive.App.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Assets\App.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\TrayConnected.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\TrayError.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\TrayStopped.ico" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

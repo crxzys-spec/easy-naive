@@ -1,0 +1,27 @@
+# Upstream/reference source trees provided for lookup only.
+/sources/
+
+# Local .NET SDK/cache and build outputs.
+/.dotnet/
+/artifacts/
+/.vs/
+TestResults/
+
+# User-local IDE files.
+*.user
+*.suo
+*.rsuser
+*.DotSettings.user
+
+# Runtime logs and temporary files.
+*.log
+*.tmp
+*.temp
+
+# Keep only the runtime files required by packaging from the root bin folder.
+/bin/*
+!/bin/sing-box/
+/bin/sing-box/*
+!/bin/sing-box/sing-box.exe
+!/bin/sing-box/libcronet.dll
+!/bin/sing-box/LICENSE

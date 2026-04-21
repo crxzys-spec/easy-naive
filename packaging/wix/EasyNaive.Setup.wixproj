@@ -1,0 +1,15 @@
+<Project Sdk="WixToolset.Sdk/5.0.2">
+  <PropertyGroup>
+    <OutputType>Package</OutputType>
+    <Platform>x64</Platform>
+    <InstallerProductVersion Condition="'$(InstallerProductVersion)' == ''">0.1.0</InstallerProductVersion>
+    <PackageSourceRoot Condition="'$(PackageSourceRoot)' == ''">$(MSBuildThisFileDirectory)..\..\artifacts\package\Release\win-x64\latest</PackageSourceRoot>
+    <OutputName>EasyNaive-$(InstallerProductVersion)-$(Platform)</OutputName>
+    <DefineConstants>PackageSourceRoot=$(PackageSourceRoot);InstallerProductVersion=$(InstallerProductVersion)</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WixToolset.Netfx.wixext" Version="5.0.2" />
+    <PackageReference Include="WixToolset.UI.wixext" Version="5.0.2" />
+  </ItemGroup>
+</Project>

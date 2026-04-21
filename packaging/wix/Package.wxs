@@ -1,0 +1,218 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:netfx="http://wixtoolset.org/schemas/v4/wxs/netfx"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+  <Package
+    Name="EasyNaive"
+    Manufacturer="EasyNaive"
+    Version="$(var.InstallerProductVersion)"
+    UpgradeCode="69E61D74-9AD5-4476-8D63-1DB8F665878C"
+    Scope="perMachine">
+
+    <netfx:DotNetCompatibilityCheck
+      Property="DOTNETDESKTOPRUNTIMECHECK"
+      RuntimeType="desktop"
+      Platform="x64"
+      Version="8.0.0"
+      RollForward="minor" />
+
+    <Launch
+      Condition="Installed OR DOTNETDESKTOPRUNTIMECHECK = 0"
+      Message="EasyNaive requires Microsoft .NET Desktop Runtime 8 (x64). Install the runtime, then run setup again." />
+
+    <Property Id="ARPCOMMENTS" Value="EasyNaive Windows client powered by sing-box and naive outbound." />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Launch EasyNaive" />
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of EasyNaive is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <SummaryInformation
+      Description="EasyNaive Windows client"
+      Manufacturer="EasyNaive"
+      Keywords="Installer" />
+
+    <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+
+    <UIRef Id="WixUI_ErrorProgressText" />
+
+    <CustomAction
+      Id="LaunchEasyNaiveApplication"
+      FileRef="filEasyNaiveTrayExe"
+      ExeCommand=""
+      Execute="immediate"
+      Return="asyncNoWait"
+      Impersonate="yes" />
+
+    <UI>
+      <Publish
+        Dialog="ExitDialog"
+        Control="Finish"
+        Event="DoAction"
+        Value="LaunchEasyNaiveApplication"
+        Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 AND NOT Installed" />
+    </UI>
+
+    <Feature Id="MainFeature" Title="EasyNaive" Level="1">
+      <ComponentGroupRef Id="RootFiles" />
+      <ComponentGroupRef Id="AssetsFiles" />
+      <ComponentGroupRef Id="SingBoxFiles" />
+      <ComponentGroupRef Id="MachineRegistration" />
+      <ComponentGroupRef Id="StartMenuCleanup" />
+      <ComponentGroupRef Id="DesktopShortcut" />
+    </Feature>
+  </Package>
+
+  <Fragment>
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="EasyNaive">
+        <Directory Id="ASSETSFOLDER" Name="Assets" />
+        <Directory Id="SINGBOXFOLDER" Name="sing-box" />
+      </Directory>
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ApplicationProgramsFolder" Name="EasyNaive" />
+    </StandardDirectory>
+
+    <StandardDirectory Id="DesktopFolder" />
+  </Fragment>
+
+  <Fragment>
+    <ComponentGroup Id="RootFiles" Directory="INSTALLFOLDER">
+      <Component Id="cmpEasyNaiveTrayExe">
+        <File Id="filEasyNaiveTrayExe" Source="$(var.PackageSourceRoot)\EasyNaiveTray.exe" KeyPath="yes" />
+      </Component>
+      <Component Id="cmpEasyNaiveTrayDll">
+        <File Source="$(var.PackageSourceRoot)\EasyNaiveTray.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="cmpEasyNaiveTrayDeps">
+        <File Source="$(var.PackageSourceRoot)\EasyNaiveTray.deps.json" KeyPath="yes" />
+      </Component>
+      <Component Id="cmpEasyNaiveTrayRuntimeConfig">
+        <File Source="$(var.PackageSourceRoot)\EasyNaiveTray.runtimeconfig.json" KeyPath="yes" />
+      </Component>
+      <Component Id="cmpEasyNaiveCoreDll">
+        <File Source="$(var.PackageSourceRoot)\EasyNaive.Core.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="cmpEasyNaiveSingBoxDll">
+        <File Source="$(var.PackageSourceRoot)\EasyNaive.SingBox.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="cmpEasyNaivePlatformWindowsDll">
+        <File Source="$(var.PackageSourceRoot)\EasyNaive.Platform.Windows.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="cmpEasyNaiveElevationExe">
+        <File Source="$(var.PackageSourceRoot)\EasyNaive.Elevation.exe" KeyPath="yes" />
+      </Component>
+      <Component Id="cmpEasyNaiveElevationDll">
+        <File Source="$(var.PackageSourceRoot)\EasyNaive.Elevation.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="cmpEasyNaiveElevationDeps">
+        <File Source="$(var.PackageSourceRoot)\EasyNaive.Elevation.deps.json" KeyPath="yes" />
+      </Component>
+      <Component Id="cmpEasyNaiveElevationRuntimeConfig">
+        <File Source="$(var.PackageSourceRoot)\EasyNaive.Elevation.runtimeconfig.json" KeyPath="yes" />
+      </Component>
+      <Component Id="cmpPackageManifest">
+        <File Source="$(var.PackageSourceRoot)\package-manifest.json" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+
+  <Fragment>
+    <ComponentGroup Id="AssetsFiles" Directory="ASSETSFOLDER">
+      <Component Id="cmpAppIcon">
+        <File Source="$(var.PackageSourceRoot)\Assets\App.ico" KeyPath="yes" />
+      </Component>
+      <Component Id="cmpTrayConnectedIcon">
+        <File Source="$(var.PackageSourceRoot)\Assets\TrayConnected.ico" KeyPath="yes" />
+      </Component>
+      <Component Id="cmpTrayErrorIcon">
+        <File Source="$(var.PackageSourceRoot)\Assets\TrayError.ico" KeyPath="yes" />
+      </Component>
+      <Component Id="cmpTrayStoppedIcon">
+        <File Source="$(var.PackageSourceRoot)\Assets\TrayStopped.ico" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+
+  <Fragment>
+    <ComponentGroup Id="SingBoxFiles" Directory="SINGBOXFOLDER">
+      <Component Id="cmpSingBoxExe">
+        <File Source="$(var.PackageSourceRoot)\sing-box\sing-box.exe" KeyPath="yes" />
+      </Component>
+      <Component Id="cmpLibCronet">
+        <File Source="$(var.PackageSourceRoot)\sing-box\libcronet.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="cmpSingBoxLicense">
+        <File Source="$(var.PackageSourceRoot)\sing-box\LICENSE" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+
+  <Fragment>
+    <ComponentGroup Id="MachineRegistration" Directory="INSTALLFOLDER">
+      <Component Id="cmpMachineRegistration" Bitness="always64">
+        <RegistryValue
+          Root="HKLM"
+          Key="Software\EasyNaive"
+          Name="InstallLocation"
+          Type="string"
+          Value="[INSTALLFOLDER]"
+          KeyPath="yes" />
+        <RegistryValue
+          Root="HKLM"
+          Key="Software\EasyNaive"
+          Name="DisplayVersion"
+          Type="string"
+          Value="[ProductVersion]" />
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+
+  <Fragment>
+    <ComponentGroup Id="StartMenuCleanup" Directory="ApplicationProgramsFolder">
+      <Component Id="cmpStartMenuCleanup">
+        <Shortcut
+          Id="scEasyNaiveStartMenu"
+          Name="EasyNaive"
+          Description="Launch EasyNaive"
+          Target="[INSTALLFOLDER]EasyNaiveTray.exe"
+          WorkingDirectory="INSTALLFOLDER" />
+        <Shortcut
+          Id="scEasyNaiveUninstall"
+          Name="Uninstall EasyNaive"
+          Description="Uninstall EasyNaive"
+          Target="[System64Folder]msiexec.exe"
+          Arguments="/x [ProductCode]"
+          WorkingDirectory="INSTALLFOLDER" />
+        <RemoveFolder Id="rmApplicationProgramsFolder" On="uninstall" />
+        <RegistryValue
+          Root="HKCU"
+          Key="Software\EasyNaive"
+          Name="StartMenuShortcut"
+          Type="integer"
+          Value="1"
+          KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+
+  <Fragment>
+    <ComponentGroup Id="DesktopShortcut" Directory="DesktopFolder">
+      <Component Id="cmpDesktopShortcut">
+        <Shortcut
+          Id="scEasyNaiveDesktop"
+          Name="EasyNaive"
+          Description="Launch EasyNaive"
+          Target="[INSTALLFOLDER]EasyNaiveTray.exe"
+          WorkingDirectory="INSTALLFOLDER" />
+        <RegistryValue
+          Root="HKCU"
+          Key="Software\EasyNaive"
+          Name="DesktopShortcut"
+          Type="integer"
+          Value="1"
+          KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+</Wix>

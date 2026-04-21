@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>EasyNaive.SingBox</AssemblyName>
+    <RootNamespace>EasyNaive.SingBox</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\EasyNaive.Core\EasyNaive.Core.csproj" />
+  </ItemGroup>
+</Project>
