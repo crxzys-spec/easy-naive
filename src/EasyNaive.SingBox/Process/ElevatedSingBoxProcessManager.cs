@@ -55,8 +55,6 @@ public sealed class ElevatedSingBoxProcessManager : IDisposable
             throw new FileNotFoundException("Elevation helper executable was not found.", options.ElevationExecutablePath);
         }
 
-        await StopAsync(options.ElevationSessionPath, cancellationToken);
-
         var sessionDirectory = Path.GetDirectoryName(options.ElevationSessionPath);
         if (!string.IsNullOrWhiteSpace(sessionDirectory))
         {
@@ -140,7 +138,7 @@ public sealed class ElevatedSingBoxProcessManager : IDisposable
         if (!string.IsNullOrWhiteSpace(effectiveSessionPath) && File.Exists(effectiveSessionPath))
         {
             var session = ElevationSessionStore.TryRead(effectiveSessionPath);
-            if (session is not null)
+            if (session is not null && ShouldInvokeStopHelper(session))
             {
                 await InvokeStopHelperAsync(effectiveSessionPath, cancellationToken);
             }
@@ -299,6 +297,16 @@ public sealed class ElevatedSingBoxProcessManager : IDisposable
         }
     }
 
+    private static bool ShouldInvokeStopHelper(ElevationSessionState session)
+    {
+        if (session.Status != ElevationSessionStatus.Running)
+        {
+            return false;
+        }
+
+        return IsProcessAlive(session.SingBoxProcessId) || IsProcessAlive(session.HelperProcessId);
+    }
+
     private static DiagnosticsProcessStartInfo CreateHelperStartInfo(string elevationExecutablePath, string arguments)
     {
         return new DiagnosticsProcessStartInfo
@@ -396,6 +404,24 @@ public sealed class ElevatedSingBoxProcessManager : IDisposable
         catch
         {
             return null;
+        }
+    }
+
+    private static bool IsProcessAlive(int processId)
+    {
+        if (processId <= 0)
+        {
+            return false;
+        }
+
+        try
+        {
+            using var process = DiagnosticsProcess.GetProcessById(processId);
+            return !process.HasExited;
+        }
+        catch
+        {
+            return false;
         }
     }
 }
